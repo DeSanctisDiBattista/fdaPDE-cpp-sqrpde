@@ -18,10 +18,10 @@
 // #include "src/qstrpde_test.cpp"   
 // #include "src/mqsrpde_test.cpp"
 // GCV test suites
-// #include "src/gcv_qstrpde_test.cpp"  
+#include "src/gcv_qstrpde_test.cpp"  
 // #include "src/gcv_mqsrpde_test.cpp"
 // // Case study 
-#include  "src/case_study.cpp"
+// #include  "src/case_study.cpp"
 
 int main(int argc, char **argv){
   // start testing

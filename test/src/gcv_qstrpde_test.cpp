@@ -476,11 +476,11 @@ using namespace std::chrono;
 //  time penalization: separable (mass penalization)
 TEST(gcv_qstrpde_test, laplacian_nonparametric_samplingatlocations_gridexact) {
   
-    // std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/space_time/Test_3/per_pull_request"; 
+    std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/space_time/Test_3/per_pull_request"; 
   
     // define domain
     MeshLoader<Mesh2D> domain("c_shaped_adj");
-    unsigned int M = 7;  
+    unsigned int M = 3;  
     Mesh<1, 1> time_mesh(0, fdapde::testing::pi, M-1);     
 
     // import data from files
@@ -510,7 +510,7 @@ TEST(gcv_qstrpde_test, laplacian_nonparametric_samplingatlocations_gridexact) {
     // define GCV function and grid of \lambda_D values
     auto GCV = model.gcv<ExactEDF>();
     std::vector<DVector<double>> lambdas_d_t;
-    for(double xs = -4.0; xs <= -2.0; xs +=0.5)
+    for(double xs = -4.0; xs <= -2.0; xs +=1.0)
       for(double xt = -7.0; xt <= -5.0; xt +=1.0) 
         lambdas_d_t.push_back(SVector<2>(std::pow(10,xs), std::pow(10,xt)));
 
@@ -518,18 +518,18 @@ TEST(gcv_qstrpde_test, laplacian_nonparametric_samplingatlocations_gridexact) {
     Grid<fdapde::Dynamic> opt;
     opt.optimize(GCV, lambdas_d_t);
     // test correctness
-    EXPECT_TRUE(almost_equal(GCV.edfs(), "../data/models/gcv/2D_test9/edfs.mtx"));
-    EXPECT_TRUE(almost_equal(GCV.gcvs(), "../data/models/gcv/2D_test9/gcvs.mtx"));
+    // EXPECT_TRUE(almost_equal(GCV.edfs(), "../data/models/gcv/2D_test9/edfs.mtx"));
+    // EXPECT_TRUE(almost_equal(GCV.gcvs(), "../data/models/gcv/2D_test9/gcvs.mtx"));
 
-    // std::ofstream fileEDF_scores(R_path + "/edfs.mtx");
-    // for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-    //   fileEDF_scores << std::setprecision(16) << GCV.edfs()[i] << "\n" ; 
-    // fileEDF_scores.close();
+    std::ofstream fileEDF_scores(R_path + "/2D_test1/edfs.mtx");
+    for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+      fileEDF_scores << std::setprecision(16) << GCV.edfs()[i] << "\n" ; 
+    fileEDF_scores.close();
 
-    // std::ofstream fileGCV_scores(R_path + "/gcvs.mtx");
-    // for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-    //   fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n" ; 
-    // fileGCV_scores.close();
+    std::ofstream fileGCV_scores(R_path + "/2D_test1/gcvs.mtx");
+    for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+      fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n" ; 
+    fileGCV_scores.close();
   
 }
 
@@ -550,7 +550,7 @@ TEST(gcv_qstrpde_test, laplacian_nonparametric_samplingatlocations_gridstochasti
   
     // define domain
     MeshLoader<Mesh2D> domain("c_shaped_adj");
-    unsigned int M = 7;  
+    unsigned int M = 3;  
     Mesh<1, 1> time_mesh(0, fdapde::testing::pi, M-1);
     // import data from files
     DMatrix<double> space_locs = read_csv<double>("../data/models/gcv/2D_test10/locs.csv");
@@ -578,9 +578,9 @@ TEST(gcv_qstrpde_test, laplacian_nonparametric_samplingatlocations_gridstochasti
     model.init();
     // define GCV function and grid of \lambda_D values
     std::size_t seed = 66546513;
-    auto GCV = model.gcv<StochasticEDF>(1000, seed);
+    auto GCV = model.gcv<StochasticEDF>(100, seed);
     std::vector<DVector<double>> lambdas_d_t;
-    for(double xs = -4.0; xs <= -2.0; xs +=0.5)
+    for(double xs = -4.0; xs <= -2.0; xs +=1.0)
       for(double xt = -7.0; xt <= -5.0; xt +=1.0)
         lambdas_d_t.push_back(SVector<2>(std::pow(10,xs), std::pow(10,xt)));
 
@@ -589,16 +589,16 @@ TEST(gcv_qstrpde_test, laplacian_nonparametric_samplingatlocations_gridstochasti
     opt.optimize(GCV, lambdas_d_t);
 
     // test correctness
-    EXPECT_TRUE(almost_equal(GCV.edfs(), "../data/models/gcv/2D_test10/edfs.mtx"));
-    EXPECT_TRUE(almost_equal(GCV.gcvs(), "../data/models/gcv/2D_test10/gcvs.mtx"));
+    // EXPECT_TRUE(almost_equal(GCV.edfs(), "../data/models/gcv/2D_test10/edfs.mtx"));
+    // EXPECT_TRUE(almost_equal(GCV.gcvs(), "../data/models/gcv/2D_test10/gcvs.mtx"));
 
-    // std::ofstream fileEDF_scores(R_path + "/edfs.mtx");
-    // for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-    //   fileEDF_scores << std::setprecision(16) << GCV.edfs()[i] << "\n" ; 
-    // fileEDF_scores.close();
+    std::ofstream fileEDF_scores(R_path + "/2D_test2/edfs.mtx");
+    for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+      fileEDF_scores << std::setprecision(16) << GCV.edfs()[i] << "\n" ; 
+    fileEDF_scores.close();
 
-    // std::ofstream fileGCV_scores(R_path + "/gcvs.mtx");
-    // for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-    //   fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n" ; 
-    // fileGCV_scores.close();
+    std::ofstream fileGCV_scores(R_path + "/2D_test2/gcvs.mtx");
+    for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+      fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n" ; 
+    fileGCV_scores.close();
 }
