@@ -62,7 +62,7 @@ template <typename RegularizationType_>
         double C_ = 1.5;                       // crossing penalty factor
         double tolerance_ = 1e-5;              // convergence tolerance 
         double tol_weights_ = 1e-6;            // weights tolerance
-        std::size_t max_iter_ = 50;            // inner max number of iterations 
+        std::size_t max_iter_ = 200;            // inner max number of iterations 
         std::size_t max_iter_global_ = 100;    // outer max number of iterations 
         std::size_t k_ = 0;                    // inner iteration index
         std::size_t iter_ = 0;                 // outer iteration index
@@ -275,7 +275,7 @@ template <typename RegularizationType_>
         // Assemble matrices
         assemble_matrices();  
 
-        // Definition of h SQRPDE models for initialization 
+        // Definition of h QSRPDE models for initialization 
         for(std::size_t j = 0; j < h_; ++j){
             Sampling s = SamplingBase<This>::sampling(); 
             QSRPDE<SpaceOnly> model_j(pde(), s, alphas_[j]);
@@ -311,7 +311,7 @@ template <typename RegularizationType_>
 
         // Processing 
         // rmk: media posta a distanza 2*eps e non eps per evitare instabilità numeriche nel caso in cui 
-        // la soluzione postporcessata venga data in input all'algoritmo di MQSRPDE
+        // la soluzione postprocessata venga data in input all'algoritmo di MQSRPDE
 
         std::size_t ind_median = (find(alphas_.begin(), alphas_.end(), 0.5)) - alphas_.begin();
         //std::cout << "idx median : " << ind_median << std::endl;
@@ -377,7 +377,6 @@ template <typename RegularizationType_>
                     DVector<double> quantile_j_nodes; 
                     quantile_j_nodes.resize(n_basis()); 
                     quantile_j_nodes = f_curr_.block(j*n_basis(), 0, n_basis(), 1);
-
 
                     //  loop on spatial points 
                     for(std::size_t i=0; i<n_obs(); i++){  
@@ -646,7 +645,7 @@ template <typename RegularizationType_>
     template <typename RegularizationType>
         const bool MQSRPDE<RegularizationType>::crossing_constraints() const {
         // Return true if the current estimate of quantiles is crossing, false otherwise 
-        return crossing_penalty() > eps_; 
+        return crossing_penalty() > 0.; 
     }
 
     template <typename RegularizationType>
