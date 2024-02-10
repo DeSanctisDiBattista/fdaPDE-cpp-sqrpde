@@ -90,6 +90,9 @@ class StochasticEDF {
     void set_model(ModelType& model) { model_ = model; }
     void set_seed(int seed) { seed_ = seed; }
     void set_n_mc_samples(int r) { r_ = r; }
+
+    // M 
+    const DMatrix<double>& S_get() const { return Us_; }   // M : fitticious, just to compile, since we need this method in exact_edf
 };
 
 }   // namespace models

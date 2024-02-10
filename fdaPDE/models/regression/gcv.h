@@ -35,12 +35,13 @@ namespace models {
 
 // type-erased wrapper for Tr[S] computation strategies
 struct I_EDFStrategy {
-    template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model>;
+    template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model, &M::S_get>;
     // forwardings
     decltype(auto) compute() { return fdapde::invoke<double, 0>(*this); }
     decltype(auto) set_model(const fdapde::erase<fdapde::non_owning_storage, IStatModel<void>, IRegression>& model) {
         fdapde::invoke<void, 1>(*this, model);
     }
+    decltype(auto) S_get() const { return fdapde::invoke<const DMatrix<double>&   , 2>(*this); }  // M 
 };
 using EDFStrategy = fdapde::erase<fdapde::heap_storage, I_EDFStrategy>;
   
@@ -77,6 +78,7 @@ class GCV {
         // return gcv at point
         double gcv_value = (n / std::pow(dor, 2)) * (model_.norm(model_.fitted(), model_.y()));
         gcvs_.emplace_back(gcv_value);
+
         return gcv_value;
     }
    public:
@@ -118,6 +120,10 @@ class GCV {
     // getters
     const std::vector<double>& edfs() const { return edfs_; }   // equivalent degrees of freedom q + Tr[S]
     const std::vector<double>& gcvs() const { return gcvs_; }   // computed values of GCV index
+    const DMatrix<double>& S_get_gcv() const { return trS_.S_get(); }
+    const DMatrix<double>& compute_IC() const { 
+        
+        return trS_.S_get(); } 
 };
 
 // provides the analytical expresssion of GCV gradient and hessian, for newton-like optimization methods

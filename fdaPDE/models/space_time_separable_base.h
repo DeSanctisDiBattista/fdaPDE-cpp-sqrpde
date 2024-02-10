@@ -98,14 +98,14 @@ class SpaceTimeSeparableBase : public SpaceTimeBase<Model, SpaceTimeSeparable> {
         return u_;
     }
     const SpMatrix<double>& PT() const {   // time-penalty component (R0 \kron P1)
-        if (is_empty(PT_)) { PT_ = Kronecker(space_pde_.mass(), P1()); }
+        if (is_empty(PT_)) { PT_ = Kronecker(P1(), space_pde_.mass()); }
         return PT_;
     }
     const SpMatrix<double>& PD() const {   // space-penalty component ((R1^T*R0^{-1}*R1) \kron P0)
         if (is_empty(PD_)) {
             fdapde::SparseLU<SpMatrix<double>> invR0_;
             invR0_.compute(space_pde_.mass());
-            PD_ = Kronecker(space_pde_.stiff().transpose() * invR0_.solve(space_pde_.stiff()), P0());
+            PD_ = Kronecker(P0(), space_pde_.stiff().transpose() * invR0_.solve(space_pde_.stiff()));
         }
         return PD_;
     }

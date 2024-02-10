@@ -114,6 +114,14 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
             .select(
               (2 * n_obs() * (abs_res.array() + tol_weights_)).inverse(), (2 * n_obs() * abs_res.array()).inverse());
         py_ = y() - (1 - 2. * alpha_) * abs_res;
+
+        // correction for missing data case
+        for(std::size_t i = 0; i < n_locs(); ++i){
+            if(Base::nan_mask()[i]){
+                py_(i) = 0.;
+                pW_(i) = 0.;
+            }
+        }
     }
     // updates mean vector \mu after WLS solution
     void fpirls_update_step(const DMatrix<double>& hat_f, const DMatrix<double>& hat_beta) { mu_ = hat_f; }

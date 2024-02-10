@@ -44,6 +44,10 @@ class ExactEDF {
     ExactEDF() = default;
     double compute() { return S().trace(); }   // computes Tr[S]
     void set_model(const ModelType& model) { model_ = model; }
+
+    // M 
+    const DMatrix<double>& S_get() const { return S_; }   // return S
+    
 };
 
 }   // namespace models
