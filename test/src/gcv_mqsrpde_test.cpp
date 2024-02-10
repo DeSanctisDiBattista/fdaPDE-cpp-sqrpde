@@ -898,6 +898,7 @@ TEST(gcv_msqrpde_test8, pde_nonparametric_samplingatlocations_spaceonly_gridexac
     //std::string R_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/models/multiple_quantiles/Tests/Test_8"; 
 
     const std::string pde_type = "_casc";    // "_lap" "_Ktrue" "_casc"
+    const bool save = false; 
 
     // define domain
     MeshLoader<Mesh2D> domain("unit_square_test8");
@@ -921,9 +922,10 @@ TEST(gcv_msqrpde_test8, pde_nonparametric_samplingatlocations_spaceonly_gridexac
     // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
     // define statistical model
-    std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 
-                                  0.25, 0.50, 0.75, 
-                                  0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};  
+    std::vector<double> alphas = {0.50, 0.75}; 
+    // {0.01, 0.02, 0.05, 0.10, 
+    //                               0.25, 0.50, 0.75, 
+    //                               0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};  
 
     // define grid of lambda values
     std::vector<std::string> lambda_selection_types = {"gcv_smooth_eps1e-1"}; // {"gcv", "gcv_smooth_eps1e-3", "gcv_smooth_eps1e-2", "gcv_smooth_eps1e-1.5", "gcv_smooth_eps1e-1"}; // {"gcv", "gcv_smooth_eps1e-3", "gcv_smooth_eps1e-2", "gcv_smooth_eps1e-1.5", "gcv_smooth_eps1e-1"};     
@@ -938,8 +940,8 @@ TEST(gcv_msqrpde_test8, pde_nonparametric_samplingatlocations_spaceonly_gridexac
     for(double x = -8.0; x <= -2.0; x += 0.1) lambdas_5.push_back(SVector<1>(std::pow(10, x))); 
     for(double x = -7.5; x <= -3.0; x += 0.1) lambdas_10.push_back(SVector<1>(std::pow(10, x))); 
     for(double x = -7.0; x <= -3.5; x += 0.1) lambdas_25.push_back(SVector<1>(std::pow(10, x)));
-    for(double x = -6.0; x <= -3.0; x += 0.1) lambdas_50.push_back(SVector<1>(std::pow(10, x))); 
-    for(double x = -6.0; x <= -3.0; x += 0.1) lambdas_75.push_back(SVector<1>(std::pow(10, x))); 
+    for(double x = -6.0; x <= -3.0; x += 1.0) lambdas_50.push_back(SVector<1>(std::pow(10, x))); 
+    for(double x = -6.0; x <= -3.0; x += 1.0) lambdas_75.push_back(SVector<1>(std::pow(10, x))); 
     for(double x = -7.5; x <= -3.5; x += 0.1) lambdas_90.push_back(SVector<1>(std::pow(10, x)));
     for(double x = -6.5; x <= -3.5; x += 0.1) lambdas_91.push_back(SVector<1>(std::pow(10, x)));
     for(double x = -6.5; x <= -3.5; x += 0.1) lambdas_92.push_back(SVector<1>(std::pow(10, x)));
@@ -957,7 +959,7 @@ TEST(gcv_msqrpde_test8, pde_nonparametric_samplingatlocations_spaceonly_gridexac
     DMatrix<double> X = read_csv<double>(R_path + "/data" + "/X.csv"); 
 
     // Simulations 
-    std::vector<unsigned int> simulations = {1,2,3,4,5,6,7,8,9,10}; 
+    std::vector<unsigned int> simulations = {1}; // {1,2,3,4,5,6,7,8,9,10}; 
     for(auto sim : simulations){
 
         std::cout << "--------------------Simulation #" << std::to_string(sim) << "-------------" << std::endl; 
@@ -1043,9 +1045,6 @@ TEST(gcv_msqrpde_test8, pde_nonparametric_samplingatlocations_spaceonly_gridexac
                     lambdas = lambdas_99; 
                 }  
 
-                // set model's data
-                model_gcv.set_exact_gcv(lambda_selection_type == "gcv"); 
-
                 if(lambda_selection_type == "gcv_smooth_eps1e-3"){
                     model_gcv.set_eps_power(-3.0); 
                 }
@@ -1072,24 +1071,27 @@ TEST(gcv_msqrpde_test8, pde_nonparametric_samplingatlocations_spaceonly_gridexac
         
                 std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
 
-                // Save lambda sequence 
-                std::ofstream fileLambdaS(solutions_path_gcv + "/lambdas_seq_alpha_" + alpha_string + ".csv");
-                for(std::size_t i = 0; i < lambdas.size(); ++i) 
-                    fileLambdaS << std::setprecision(16) << lambdas[i] << "\n"; 
-                fileLambdaS.close();
+                if(save){
+                    // Save lambda sequence 
+                    std::ofstream fileLambdaS(solutions_path_gcv + "/lambdas_seq_alpha_" + alpha_string + ".csv");
+                    for(std::size_t i = 0; i < lambdas.size(); ++i) 
+                        fileLambdaS << std::setprecision(16) << lambdas[i] << "\n"; 
+                    fileLambdaS.close();
 
-                // Save lambda GCVopt for all alphas
-                std::ofstream fileLambdaoptS(solutions_path_gcv + "/lambdas_opt_alpha_" + alpha_string + ".csv");
-                if(fileLambdaoptS.is_open()){
-                    fileLambdaoptS << std::setprecision(16) << best_lambda;
-                    fileLambdaoptS.close();
+                    // Save lambda GCVopt for all alphas
+                    std::ofstream fileLambdaoptS(solutions_path_gcv + "/lambdas_opt_alpha_" + alpha_string + ".csv");
+                    if(fileLambdaoptS.is_open()){
+                        fileLambdaoptS << std::setprecision(16) << best_lambda;
+                        fileLambdaoptS.close();
+                    }
+
+                    // Save GCV 
+                    std::ofstream fileGCV_scores(solutions_path_gcv + "/score_alpha_" + alpha_string + ".csv");
+                    for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+                        fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
+                    fileGCV_scores.close();
                 }
 
-                // Save GCV 
-                std::ofstream fileGCV_scores(solutions_path_gcv + "/score_alpha_" + alpha_string + ".csv");
-                for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-                    fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
-                fileGCV_scores.close();
             }
 
         }

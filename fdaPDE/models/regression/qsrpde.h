@@ -42,6 +42,7 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     using Base::W_;         // weight matrix
     using Base::XtWX_;      // q x q matrix X^T*W*X
 
+
     // constructor
     QSRPDE() = default;
     // space-only and space-time parabolic constructor
@@ -49,35 +50,28 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     QSRPDE(const pde_ptr& pde, Sampling s, double alpha = 0.5) : Base(pde, s), alpha_(alpha) {
         fpirls_ = FPIRLS<This>(this, tol_, max_iter_);
     };
-    // space-time constructors
-    fdapde_enable_constructor_if(is_space_time_separable, This)
-    QSRPDE(const pde_ptr& space_penalty, const pde_ptr& time_penalty, Sampling s, double alpha) :
-      Base(space_penalty, time_penalty, s), alpha_(alpha) {
+    // space-time separable constructor
+    fdapde_enable_constructor_if(has_double_penalty, This)
+    QSRPDE(const pde_ptr& space_penalty, const pde_ptr& time_penalty, Sampling s, double alpha = 0.5) :
+        Base(space_penalty, time_penalty, s), alpha_(alpha) {
         fpirls_ = FPIRLS<This>(this, tol_, max_iter_);
     };
-    fdapde_enable_constructor_if(is_space_time_parabolic, This)
-    QSRPDE(const pde_ptr& space_penalty, const DVector<double>& time, Sampling s, double alpha) :
-      Base(space_penalty, s, time), alpha_(alpha) {
-        fpirls_ = FPIRLS<This>(this, tol_, max_iter_);
-    };
-
     // setter
     void set_fpirls_tolerance(double tol) { tol_ = tol; }
     void set_fpirls_max_iter(std::size_t max_iter) { max_iter_ = max_iter; }
     void set_alpha(double alpha) { alpha_ = alpha; }
-    void set_exact_gcv(bool exact) { exact_gcv = exact; }
-    void set_eps_power(double power) { eps_power = power; }
+    void set_eps_power(double eps) { eps_ = eps; }
+    void set_weights_tolerance(double tol_weights) { tol_weights_ = tol_weights; }
 
-    void init_data()  { return; }
     void init_model() { fpirls_.init(); }
-    void solve() {   // finds a solution to the smoothing problem
+    void solve() {
         // execute FPIRLS_ for minimization of functional \norm{V^{-1/2}(y - \mu)}^2 + \lambda \int_D (Lf - u)^2
         fpirls_.compute();
-        // fpirls_ converged: extract matrix W and solution estimates
+        // fpirls_ converged: store solution estimates
         W_ = fpirls_.solver().W();
         f_ = fpirls_.solver().f();
         g_ = fpirls_.solver().g();
-        // store parametric part
+        // parametric part, if problem was semi-parametric
         if (has_covariates()) {
             beta_ = fpirls_.solver().beta();
             XtWX_ = fpirls_.solver().XtWX();
@@ -92,36 +86,32 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     // required by FPIRLS_ (see fpirls_.h for details)
     // initalizes mean vector \mu
     void fpirls_init() {
+        // TODO: use a standardized solver (we can exploit the fpirls solver)
         // non-parametric and semi-parametric cases coincide here, since beta^(0) = 0
-        // assemble srpde non-parametric system matrix and factorize
         SparseBlockMatrix<double, 2, 2> A(
-          PsiTD() * Psi() / n_obs(), 2 * lambda_D() * R1().transpose(),
-	  lambda_D() * R1(),         -lambda_D() * R0()               );
+          -PsiTD() * Psi() / n_obs(), 2 * lambda_D() * R1().transpose(),   // NB: observe the 2 * here
+          lambda_D() * R1(),          lambda_D() * R0()                );
+        if constexpr (is_space_time_separable<This>::value) {
+            A.block(0, 0) -= 2*Base::lambda_T() * Kronecker(Base::P1(), Base::pde().mass());
+        }
         fdapde::SparseLU<SpMatrix<double>> invA;
         invA.compute(A);
         // assemble rhs of srpde problem
         DVector<double> b(A.rows());
         b.block(n_basis(), 0, n_basis(), 1) = lambda_D() * u();
-        b.block(0, 0, n_basis(), 1) = PsiTD() * y() / n_obs();
+        b.block(0, 0, n_basis(), 1) = -PsiTD() * y() / n_obs();
         mu_ = Psi(not_nan()) * (invA.solve(b)).head(n_basis());
     }
     // computes W^k = diag(1/(2*n*|y - X*beta - f|)) and y^k = y - (1-2*alpha)|y - X*beta - f|
     void fpirls_compute_step() {
         DVector<double> abs_res = (y() - mu_).array().abs();
-        // W_i = 1/(2*n*(abs_res[i] + tol_weights_)) if abs_res[i] < tol_weights, w_i = 1/(2*n*abs_res[i]) otherwise
+        // W_i = 1/(2*n*(abs_res[i] + tol_weights_)) if abs_res[i] < tol_weights, W_i = 1/(2*n*abs_res[i]) otherwise
         pW_ =
           (abs_res.array() < tol_weights_)
             .select(
               (2 * n_obs() * (abs_res.array() + tol_weights_)).inverse(), (2 * n_obs() * abs_res.array()).inverse());
         py_ = y() - (1 - 2. * alpha_) * abs_res;
 
-        // correction for missing data case
-        for(std::size_t i = 0; i < n_locs(); ++i){
-            if(Base::nan_mask()[i]){
-                py_(i) = 0.;
-                pW_(i) = 0.;
-            }
-        }
     }
     // updates mean vector \mu after WLS solution
     void fpirls_update_step(const DMatrix<double>& hat_f, const DMatrix<double>& hat_beta) { mu_ = hat_f; }
@@ -130,57 +120,32 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     const DVector<double>& py() const { return py_; }
     const DVector<double>& pW() const { return pW_; }
     const fdapde::SparseLU<SpMatrix<double>>& invA() const { return invA_; }
-    const SpMatrix<double>& P1() const { return P1_; }   // ficticious (to compile fpirls space-time case)
-
     // GCV support
     double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const {
 
         double result = 0;
-        for(std::size_t i = 0; i < n_locs(); ++i){
-            if(!Base::nan_mask()[i])
-                result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_power)); 
+        for (std::size_t i = 0; i < n_locs(); ++i) {
+            if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
         }
-        return result * result / n_obs();  // n_obs() returns number of not-nan observations
+        return std::pow(result, 2) / n_obs();
     }
-
-    // Compute  log(1 + exp(x))  without overflow 
-    double log1pexp(double x) const{
-      if(x <= -37) return std::exp(x); 
-      if(x <= 18.) return std::log1p(std::exp(x));
-      if(x > 33.3) return x;
-      // else:
-      return x + std::exp(-x);
-  }  
-
-
-    virtual ~QSRPDE() = default;
    private:
     double alpha_ = 0.5;      // quantile order (default to median)
     DVector<double> py_ {};   // y - (1-2*alpha)|y - X*beta - f|
     DVector<double> pW_ {};   // diagonal of W^k = 1/(2*n*|y - X*beta - f|)
     DVector<double> mu_;      // \mu^k = [ \mu^k_1, ..., \mu^k_n ] : quantile vector at step k
-    DMatrix<double> T_;       // T = \Psi^T*Q*\Psi + P
-    fdapde::SparseLU<SpMatrix<double>> invA_;   // factorization of non-parametric system matrix A
-    SpMatrix<double> P1_{}; // ficticious (to compile fpirls space-time case)
+    fdapde::SparseLU<SpMatrix<double>> invA_;
 
-    // FPIRLS algorithm
-    FPIRLS<This> fpirls_;
-    std::size_t max_iter_ = 200;
+    FPIRLS<This> fpirls_;          // fpirls algorithm
+    std::size_t max_iter_ = 200;   // maximum number of iterations in fpirls before forced stop
+    double tol_ = 1e-6;            // fprils convergence tolerance
     double tol_weights_ = 1e-6;
-    double tol_ = 1e-6;
-    bool exact_gcv = true; 
-    double eps_power = -1.0; 
 
-    double pinball_loss(double x, double eps) const {  // quantile check function
-        //if constexpr(std::is_same<RegularizationType, SpaceOnly>::value)
-        if(exact_gcv){
-            //std::cout << "exact GCV computation" << std::endl; 
-            return 0.5 * std::abs(x) + (alpha_ - 0.5) * x;      // exact 
-        } else{
-            // std::cout << "approximate GCV computation" << std::endl;
-            return (alpha_-1) * x + eps * log1pexp(x / eps);    // approximation
-        }
-    };   
+    double eps_ = -1.0;   // pinball loss smoothing factor
+    double pinball_loss(double x, double eps) const {   // quantile check function
+        return (alpha_ - 1) * x + eps * fdapde::log1pexp(x / eps);
+    };
+    double pinball_loss(double x) const { return 0.5 * std::abs(x) + (alpha_ - 0.5) * x; }   // non-smoothed pinball
 };
 
 }   // namespace models

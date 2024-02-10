@@ -34,16 +34,14 @@ namespace fdapde {
 namespace models {
 
 // type-erased wrapper for Tr[S] computation strategies
-struct I_EDFStrategy {
+struct EDFStrategy__ {
     template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model, &M::S_get>;
     // forwardings
     decltype(auto) compute() { return fdapde::invoke<double, 0>(*this); }
-    decltype(auto) set_model(const fdapde::erase<fdapde::non_owning_storage, IStatModel<void>, IRegression>& model) {
-        fdapde::invoke<void, 1>(*this, model);
-    }
+    void set_model(const RegressionView<void>& model) { fdapde::invoke<void, 1>(*this, model); }
     decltype(auto) S_get() const { return fdapde::invoke<const DMatrix<double>&   , 2>(*this); }  // M 
 };
-using EDFStrategy = fdapde::erase<fdapde::heap_storage, I_EDFStrategy>;
+using EDFStrategy = fdapde::erase<fdapde::heap_storage, EDFStrategy__>;
   
 // base functor implementing the expression of the GCV index for model M (type-erased).
 class GCV {
@@ -51,6 +49,7 @@ class GCV {
     using This = GCV;
     using VectorType = DVector<double>;
     using MatrixType = DMatrix<double>;
+    static constexpr int DomainDimension = fdapde::Dynamic;
     RegressionView<void> model_;    // model to calibrate
     EDFStrategy trS_;               // strategy used to evaluate the trace of smoothing matrix S
     std::vector<double> edfs_;      // equivalent degrees of freedom q + Tr[S]
@@ -85,14 +84,14 @@ class GCV {
     template <typename ModelType_, typename EDFStrategy_>
     GCV(const ModelType_& model, EDFStrategy_&& trS) : model_(model), trS_(trS), gcv_(this, &This::gcv_impl) {
         // resize gcv input space dimension
-        if constexpr (is_space_only<typename std::decay<ModelType_>::type>::value) gcv_.resize(1);
+        if constexpr (is_space_only<std::decay_t<ModelType_>>::value) gcv_.resize(1);
         else gcv_.resize(2);
         // set model pointer in edf computation strategy
         trS_.set_model(model_);
     };
     template <typename ModelType_> GCV(const ModelType_& model) : GCV(model, StochasticEDF()) {}; 
     GCV(const GCV& other) : model_(other.model_), trS_(other.trS_), gcv_(this, &This::gcv_impl) {};
-    GCV() = default;
+    GCV() : gcv_(this, &This::gcv_impl) { }
 
     // call operator and numerical derivative approximations
     double operator()(const VectorType& lambda) { return gcv_(lambda); }
@@ -111,9 +110,16 @@ class GCV {
     // set edf_evaluation strategy
     template <typename EDFStrategy_> void set_edf_strategy(EDFStrategy_&& trS) {
         trS_ = trS;
-        trS_.set_model(model_);
-	// clear previous status
+	if(model_) trS_.set_model(model_);
 	edfs_.clear(); gcvs_.clear(); cache_.clear();
+    }
+    template <typename ModelType_> void set_model(ModelType_&& model) {
+      	// resize gcv input space dimension
+        if constexpr (is_space_only<std::decay_t<ModelType_>>::value) gcv_.resize(1);
+        else gcv_.resize(2);
+        model_ = model;
+	if(trS_) trS_.set_model(model_);
+        edfs_.clear(); gcvs_.clear(); cache_.clear();
     }
     void set_step(double step) { gcv_.set_step(step); }
 

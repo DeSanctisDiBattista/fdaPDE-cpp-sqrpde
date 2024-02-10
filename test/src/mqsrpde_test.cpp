@@ -1133,30 +1133,30 @@ TEST(mqsrpde_test8, laplacian_nonparametric_samplingatlocations) {
                     model.init();
                     model.solve();
 
-                    // Save solution
-                    DMatrix<double> computedF = model.f();
-                    const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(solution_path + "/f_" + std::to_string(alpha_int) + ".csv");
-                    if(filef.is_open()){
-                        filef << computedF.format(CSVFormatf);
-                        filef.close();
-                    }
+                    // // Save solution
+                    // DMatrix<double> computedF = model.f();
+                    // const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                    // std::ofstream filef(solution_path + "/f_" + std::to_string(alpha_int) + ".csv");
+                    // if(filef.is_open()){
+                    //     filef << computedF.format(CSVFormatf);
+                    //     filef.close();
+                    // }
 
-                    DMatrix<double> computedFn = model.Psi()*model.f();
-                    const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(solution_path + "/fn_" + std::to_string(alpha_int) + ".csv");
-                    if(filefn.is_open()){
-                        filefn << computedFn.format(CSVFormatfn);
-                        filefn.close();
-                    }
+                    // DMatrix<double> computedFn = model.Psi()*model.f();
+                    // const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                    // std::ofstream filefn(solution_path + "/fn_" + std::to_string(alpha_int) + ".csv");
+                    // if(filefn.is_open()){
+                    //     filefn << computedFn.format(CSVFormatfn);
+                    //     filefn.close();
+                    // }
 
-                    DMatrix<double> computedBeta = model.beta(); 
-                    const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filebeta(solution_path + "/beta_" + std::to_string(alpha_int) + ".csv");
-                    if(filebeta.is_open()){
-                        filebeta << computedBeta.format(CSVFormatBeta);
-                        filebeta.close();
-                    }
+                    // DMatrix<double> computedBeta = model.beta(); 
+                    // const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                    // std::ofstream filebeta(solution_path + "/beta_" + std::to_string(alpha_int) + ".csv");
+                    // if(filebeta.is_open()){
+                    //     filebeta << computedBeta.format(CSVFormatBeta);
+                    //     filebeta.close();
+                    // }
 
                     idx++;
                 }
