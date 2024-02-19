@@ -49,21 +49,22 @@ template <typename RegularizationType_>
         using Base = RegressionBase<MQSRPDE<RegularizationType>, RegularizationType>;
 
     private:
-        // typedef RegressionBase<MQSRPDE<PDE_, RegularizationType, SamplingDesign_, Solver_>> Base;
 
+        // model parameters 
         unsigned int h_;                      // number of quantile orders 
-        const std::vector<double> alphas_;    // quantile order 
+        const std::vector<double> alphas_;    // quantile orders
         bool do_process = false;
         bool force_entrance = false; 
 
         // algorithm's parameters 
-        double gamma0_ = 1.0;                  // crossing penalty 
+        double gamma0_ = 5.;                   // crossing penalty 
         double eps_ = 1e-6;                    // crossing tolerance 
         double C_ = 1.5;                       // crossing penalty factor
-        double tolerance_ = 1e-5;              // convergence tolerance 
+        double tolerance_ = 1e-6;              // convergence tolerance 
         double tol_weights_ = 1e-6;            // weights tolerance
-        std::size_t max_iter_ = 200;            // inner max number of iterations 
-        std::size_t max_iter_global_ = 100;    // outer max number of iterations 
+        std::size_t max_iter_ = 500;           // max number of inner iterations 
+        std::size_t max_iter_global_ = 100;    // max number of outer iterations 
+
         std::size_t k_ = 0;                    // inner iteration index
         std::size_t iter_ = 0;                 // outer iteration index
 
@@ -72,18 +73,19 @@ template <typename RegularizationType_>
         fdapde::SparseLU<SpMatrix<double>> invA_;   // factorization of matrix A
         DVector<double> b_{};                       // system rhs 
 
-        // room for solution 
+        // room for current solution 
         DVector<double> f_curr_{};     // current estimate of the spatial field f (1 x h*N vector)
         DVector<double> fn_curr_{};    // current estimate of the spatial field f_n (1 x h*n vector)
         DVector<double> g_curr_{};     // current PDE misfit (1 x h*N vector)
         DVector<double> beta_curr_{};  // current estimate of the coefficient vector (1 x h*q vector)
 
+        // room for initial solution
         DVector<double> f_init_{}; 
         DVector<double> fn_init_{}; 
         DVector<double> g_init_{}; 
         DVector<double> beta_init_{}; 
 
-        // room for algorithm quantities 
+        // room for algorithm's matrices  
         SpMatrix<double> Ih_;                 // identity h x h 
         SpMatrix<double> In_;                 // identity n x n
         SpMatrix<double> Iq_;                 // identity q x q 
@@ -143,8 +145,10 @@ template <typename RegularizationType_>
         const DVector<double>& f() const { return f_curr_; };            // estimate of spatial field
         const DVector<double>& g() const { return g_curr_; };            // PDE misfit
         const DVector<double>& beta() const { return beta_curr_; };      // estimate of regression coefficients
+        const DMatrix<double>& H_multiple(); 
+        const DMatrix<double>& Q_multiple(); 
         // const SparseBlockMatrix<double,2,2>& A_mult() const { return A_; };              // debug
-        const SpMatrix<double>& Psi_mult() const { return Psi_multiple_; };              // debug
+        const SpMatrix<double>& Psi_mult() const { return Psi_multiple_; };                 // debug
         // const SpMatrix<double>& W_mult() const { return W_multiple_debug; };             // debug
         // const SpMatrix<double>& D_script() const { return D_script_; };                  // debug  
         // const DiagMatrix<double>& Delta_mult() const { return Delta_debug; };            // debug
@@ -160,15 +164,17 @@ template <typename RegularizationType_>
         void update_to_weights() { return; };   // update model object in case of changes in the weights matrix
         virtual void solve(); // finds a solution to the smoothing problem
 
-        // Utilities 
+        // Check if quantiles are crossing 
         const bool crossing_constraints() const;
 
+        // Set the h lambdas of the QSRPDE models 
         void setLambdas_D(DMatrix<double> l){
             lambdas_D.resize(l.rows()); 
             for(auto i = 0; i < l.rows(); ++i)
                 lambdas_D(i) = l(i,0);  
         }
             
+        // Assemble matrices once and for all 
         void assemble_matrices(){
 
             // room for solution 
@@ -199,7 +205,7 @@ template <typename RegularizationType_>
             R0_multiple_ = Kronecker(SpMatrix<double>(DiagMatrix<double>(lambdas_D)), R0());
             R1_multiple_ = Kronecker(SpMatrix<double>(DiagMatrix<double>(lambdas_D)), R1());
 
-            // assemble
+            // parametric case 
             if(has_covariates()){ 
                 X_multiple_ = Kronecker(DMatrix<double>(Ih_), X()); 
                 XtWX_multiple_.resize(h_*q(), h_*q()); 
@@ -207,26 +213,22 @@ template <typename RegularizationType_>
                 V_multiple_.resize(h_*q(), 2*h_*n_basis());
             }
 
-            // assemble l_hn_
+            // assemble other vectors and matrices 
             l_hn_.resize(h_*n_obs()); 
             l_hn_ = DVector<double>::Zero(h_*n_obs());
             l_hn_.block(0,0, n_obs(), 1) = -DVector<double>::Ones(n_obs());
             l_hn_.block((h_-1)*n_obs(),0, n_obs(), 1) = DVector<double>::Ones(n_obs());
 
-
             SpMatrix<double> E_{};
             E_.resize(h_-1, h_); 
             std::vector<fdapde::Triplet<double>> tripletList;
             tripletList.reserve(2*(h_-1));
-
             for(std::size_t i = 0; i < h_-1; ++i){
                 tripletList.emplace_back(i, i+1, 1.0);
                 tripletList.emplace_back(i, i, -1.0);
             }
-
             E_.setFromTriplets(tripletList.begin(), tripletList.end());
             E_.makeCompressed();
-
             if(has_covariates()){
                 D_ = Kronecker(E_, Iq_); 
             }       
@@ -234,19 +236,24 @@ template <typename RegularizationType_>
 
         }
 
+        // pinball loss
         DVector<double> rho_alpha(const double&, const DVector<double>&) const; 
+        // getter for the j-th block of the fitted vector. It returns the j-th fitted quantile 
         DVector<double> fitted(unsigned int j) const; 
+        // getter for the fitted vector of all the quantiles 
         DVector<double> fitted() const; 
-        void abs_res_adj(DVector<double>& w); 
-        double model_loss() const; 
+        // adjust the absolute residual vector with the tolerance tol_weights_
+        void abs_res_adj(DVector<double>& res); 
+        // returns the data loss of the model 
+        double data_loss() const; 
+        // return the crossing penalty value 
         double crossing_penalty() const;
         double crossing_penalty_f() const; 
         double crossing_penalty_param() const; 
+
+        // setters
         void set_preprocess_option(bool preprocess){ do_process = preprocess;}; 
         void set_forcing_option(bool force){ force_entrance = force;}; 
-
-        const DMatrix<double>& H_multiple(); 
-        const DMatrix<double>& Q_multiple(); 
 
         virtual ~MQSRPDE() = default;
     };
@@ -275,6 +282,8 @@ template <typename RegularizationType_>
         // Assemble matrices
         assemble_matrices();  
 
+        double J_init = 0.;  // degub
+
         // Definition of h QSRPDE models for initialization 
         for(std::size_t j = 0; j < h_; ++j){
             Sampling s = SamplingBase<This>::sampling(); 
@@ -298,6 +307,8 @@ template <typename RegularizationType_>
             if(has_covariates()){
                 beta_curr_.block(j*q(), 0, q(), 1) = model_j.beta();
             }
+
+            J_init += model_j.data_loss();   // degub 
 
         }
 
@@ -471,7 +482,7 @@ template <typename RegularizationType_>
 
         // std::cout << "Range f_init_ : " << f_init_.minCoeff() << " , " << f_init_.maxCoeff() << std::endl ; 
         // std::cout << "Range g_init_ : " << g_init_.minCoeff() << " , " << g_init_.maxCoeff() << std::endl ; 
-        // std::cout << "Model loss of the initializazion: " << model_loss() << " + penalty = " << g_curr_.dot(R0_multiple_*g_curr_) << std::endl;  
+        // std::cout << "Model loss of the initializazion: " << data_loss() << " + penalty = " << g_curr_.dot(R0_multiple_*g_curr_) << std::endl;  
         // std::cout << "----- crossing global at init = " << crossing_penalty() << std::endl;
         return;
     }
@@ -480,6 +491,7 @@ template <typename RegularizationType_>
     template <typename RegularizationType>
         void MQSRPDE<RegularizationType>::solve() {
 
+        // store room for W, Delta, z, t
         w_.resize(h_*n_obs()); 
         W_bar_.resize(h_*n_obs());    
 
@@ -491,10 +503,10 @@ template <typename RegularizationType_>
         DVector<double> t{};    
         t.resize(h_*n_obs()); 
 
+        // initialize the crossing value 
         double crossing_penalty_init = crossing_penalty(); 
 
-        //bool force_entrance = do_process;   
-
+        // outer loop for the fulfilment of the crossing constraints 
         while(force_entrance || (crossing_constraints() && iter_ < max_iter_global_)){ 
 
             if(force_entrance)
@@ -503,9 +515,13 @@ template <typename RegularizationType_>
             force_entrance = false; 
 
             std::cout << "----------------Gamma = " << gamma0_ << std::endl; 
-            // algorithm stops when an enought small difference between two consecutive values of the J is recordered
+            std::cout << "J_init = " << data_loss() + g_curr_.dot(R0_multiple_*g_curr_) + gamma0_*crossing_penalty() <<
+                  "=" << data_loss() << "+" << g_curr_.dot(R0_multiple_*g_curr_) << "+" << gamma0_*crossing_penalty() << std::endl;
+            
+            // algorithm stops when an sufficiently small difference between two consecutive values of the J is recordered
             double J_old = tolerance_+1; double J_new = 0;
             k_ = 0;
+            // inner loop for the convergence of J 
             while(k_ < max_iter_ && std::abs(J_new - J_old) > tolerance_){    
 
                 //std::cout << "--------------------------  k_ = " << k_ << std::endl; 
@@ -519,6 +535,7 @@ template <typename RegularizationType_>
                     DVector<double> delta_j; 
                     DVector<double> z_j;
                     
+                    // compute absolute residuals (without tolerance correction)
                     abs_res_j = (y() - fitted(j)).cwiseAbs(); 
 
                     if(j < h_-1) {
@@ -526,12 +543,16 @@ template <typename RegularizationType_>
                         //std::cout << "L inf norm abs delta j = " << (delta_j).cwiseAbs().maxCoeff() << std::endl;
                     }
                              
+                    // compute pseudo-observations 
                     z_j = y() - (1 - 2*alphas_[j])*abs_res_j; 
 
+                    // apply the weights correction for numerical stability 
                     abs_res_adj(abs_res_j);
 
+                    // compute weights 
                     w_.block(j*n_obs(), 0, n_obs(), 1) = 2*n_obs()*abs_res_j;
 
+                    // store the results in the global matrices 
                     if(j < h_-1) 
                         delta_.block(j*n_obs(), 0, n_obs(), 1) = delta_j; 
 
@@ -545,7 +566,7 @@ template <typename RegularizationType_>
                 // assemble t 
                 t = D_script_.transpose()*Delta_*eps_*DVector<double>::Ones((h_-1)*n_obs()) + 0.5*l_hn_; 
 
-                // assemble system matrix for nonparameteric part
+                // assemble nonparameteric system matrix (RMK: mass and stiffness matrices already contain lambda)
                 A_ = SparseBlockMatrix<double,2,2>
                 (-Psi_multiple_.transpose()*W_multiple_*Psi_multiple_,    R1_multiple_.transpose(),
                 R1_multiple_,                                             R0_multiple_            );
@@ -553,7 +574,7 @@ template <typename RegularizationType_>
                 // cache non-parametric matrix factorization for reuse
                 invA_.compute(A_);
 
-                // prepare rhs of linear system
+                // prepare rhs of linear system (TODO: generalize to non zero rhs)
                 b_.resize(A_.rows());
                 b_.block(h_*n_basis(),0, h_*n_basis(),1) = DVector<double>::Zero(h_*n_basis());  // b_g = 0 
 
@@ -601,24 +622,28 @@ template <typename RegularizationType_>
                     
                     // update J 
                     J_old = J_new; 
-                    J_new = model_loss() + g_curr_.dot(R0_multiple_*g_curr_) + gamma0_*crossing_penalty();   // R0 multiple already contains lambdas!
+                    J_new = data_loss() + g_curr_.dot(R0_multiple_*g_curr_) + gamma0_*crossing_penalty();   // R0 multiple already contains lambdas!
                     
 
-                    // std::cout << "----- crossing global at iter k = " << crossing_penalty() << std::endl;
+                    std::cout << "----- crossing global at iter k=" << k_ << " is " << crossing_penalty() << std::endl;
                     // std::cout << "----- J_old = " << J_old << std::endl;
-                    // std::cout << "----- J_new = " << J_new << " = " << model_loss() << " + " << g_curr_.dot(R0_multiple_*g_curr_) << std::endl;  
-                    // std::cout << "----- J_old - J_new = " << J_old - J_new << std::endl; 
+                    std::cout << "----- J_new = " << J_new << " = " << data_loss() << " + " << g_curr_.dot(R0_multiple_*g_curr_) << std::endl;  
+                    std::cout << "----- J_old - J_new = " << J_old - J_new << std::endl; 
 
+                    // update number of inner iterations 
                     k_++;  
             }
 
+            // update crossing value 
             double crossing_penalty_new = crossing_penalty(); 
 
             std::cout << "#################### cross new:  " << crossing_penalty_new << " , cross init: " << crossing_penalty_init << std::endl; 
             //std::cout << "#################### cross new-init: " << std::setprecision(10) << (crossing_penalty_new - crossing_penalty_init) << std::endl; 
             std::cout << "#################### number of inner iterations = " << k_ << std::endl;
 
+            // update crossing penalty factor
             gamma0_ *= C_;  
+            // update number of outer iterations
             iter_++;     
             
         }
@@ -649,7 +674,7 @@ template <typename RegularizationType_>
     }
 
     template <typename RegularizationType>
-        double MQSRPDE<RegularizationType>::model_loss() const{
+        double MQSRPDE<RegularizationType>::data_loss() const{
 
         double loss = 0.; 
         for(auto j = 0; j < h_; ++j)

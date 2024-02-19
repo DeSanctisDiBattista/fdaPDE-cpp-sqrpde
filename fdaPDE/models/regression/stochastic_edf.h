@@ -47,6 +47,7 @@ class StochasticEDF {
     // evaluate trace of S exploiting a monte carlo approximation
     double compute() {
         if (!init_) {
+            std::cout << "-----------------------STOCHASTIC GCV running-------------------------------" << std::endl; 
             // compute sample from Rademacher distribution
             std::mt19937 rng(seed_);
             std::bernoulli_distribution Be(0.5);   // bernulli distribution with parameter p = 0.5

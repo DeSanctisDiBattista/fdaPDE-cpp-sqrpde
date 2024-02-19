@@ -63,8 +63,15 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     void set_eps_power(double eps) { eps_ = eps; }
     void set_weights_tolerance(double tol_weights) { tol_weights_ = tol_weights; }
 
-    void init_model() { fpirls_.init(); }
+    void init_model() { 
+        fpirls_.init();
+    }
     void solve() {
+
+        // std::cout << "qsrpde solve: n tot " << y().size() << std::endl;
+        // std::cout << "qsrpde solve: n " << n_obs() << std::endl;
+        // std::cout << "qsrpde solve: n missing " << Base::masked_obs().count() << std::endl;
+
         // execute FPIRLS_ for minimization of functional \norm{V^{-1/2}(y - \mu)}^2 + \lambda \int_D (Lf - u)^2
         fpirls_.compute();
         // fpirls_ converged: store solution estimates
@@ -112,6 +119,15 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
               (2 * n_obs() * (abs_res.array() + tol_weights_)).inverse(), (2 * n_obs() * abs_res.array()).inverse());
         py_ = y() - (1 - 2. * alpha_) * abs_res;
 
+
+        // ATT: riaggiunto  
+        for(std::size_t i=0; i<n_locs(); ++i){
+            if(Base::nan_mask()[i]){
+                py_(i)=0.; 
+                pW_(i)=0.; 
+            }
+        }
+
     }
     // updates mean vector \mu after WLS solution
     void fpirls_update_step(const DMatrix<double>& hat_f, const DMatrix<double>& hat_beta) { mu_ = hat_f; }
@@ -127,6 +143,8 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
         for (std::size_t i = 0; i < n_locs(); ++i) {
             if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
         }
+        std::cout << "qsrpde norm: eps=" << eps_ << std::endl;
+        std::cout << "qsrpde norm: n_obs()=" << n_obs() << std::endl; 
         return std::pow(result, 2) / n_obs();
     }
    private:

@@ -67,6 +67,10 @@ template <typename Model_> class FPIRLS {
         }
         solver_.set_lambda(m_->lambda());     // derive smoothing level
         solver_.set_mask(m_->masked_obs());   // derive missing and masking data pattern
+
+        // std::cout << "fpirls init: solver::n_tot " << solver_.y().size() << std::endl;
+        //std::cout << "fpirls init: solver::n " << solver_.n_obs() << std::endl;
+
     }
     // executes the FPIRLS algorithm
     void compute() {
@@ -76,6 +80,7 @@ template <typename Model_> class FPIRLS {
         double J_old = tolerance_ + 1, J_new = 0;
 	k_ = 0;
         while (k_ < max_iter_ && std::abs(J_new - J_old) > tolerance_) {
+            // std::cout << "fpirls iter " << k_ << std::endl; 
             m_->fpirls_compute_step();   // model specific computation of py_ and pW_
             // solve weighted least square problem
             // \argmin_{\beta, f} [ \norm(W^{1/2}(y - X\beta - f_n))^2 + \lambda \int_D (Lf - u)^2 ]
@@ -84,14 +89,14 @@ template <typename Model_> class FPIRLS {
             solver_.data().template insert<double>(WEIGHTS_BLK, m_->pW());
             // solve weighted least square problem
 	        // update solver and solve
-	        solver_.init();
+	        solver_.init(); 
             // solve weighted least square problem
             solver_.solve();
             // solve weighted least square problem
             m_->fpirls_update_step(solver_.fitted(), solver_.beta());   // model specific update step
             // update objective functional J = data_loss + f^\top * P_{\lambda}(f) * f 
             k_++; J_old = J_new;
-	    J_new = m_->data_loss() + m_->ftPf(m_->lambda(), solver_.f(), solver_.g());;
+	    J_new = m_->data_loss() + m_->ftPf(m_->lambda(), solver_.f(), solver_.g());
         }
         return;
     }

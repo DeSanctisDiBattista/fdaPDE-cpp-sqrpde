@@ -266,9 +266,10 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
     // std::string R_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/models/space_time/Test_3"; 
 
     std::vector<double> alphas = {0.1}; // , 0.5, 0.9};   // , 0.9}; 
-    std::vector<std::string> data_types = {"a"}; 
+    std::vector<std::string> data_types = {"all"}; 
     std::string p_string = "50";   
     std::string lambda_selection_type = "gcv_smooth_eps1e-1";   // gcv gcv_smooth manual 
+    bool check_for_merge = true; 
 
     // define temporal domain
     unsigned int M = 7; 
@@ -294,7 +295,7 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
     auto Lt = -bilaplacian<SPLINE>();
     PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
-    unsigned int n_sim = 1; 
+    unsigned int n_sim = 10; 
 
     // // lambdas_d_t for RMSE
     // std::vector<SVector<2>> lambdas_try; 
@@ -370,24 +371,28 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
               model.init();
               model.solve();
 
-              // // Save C++ solution 
-              // DMatrix<double> computedF = model.f();
-              // const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-              // std::ofstream filef(solutions_path + "/f.csv");
-              // if (filef.is_open()){
-              //   filef << computedF.format(CSVFormatf);
-              //   filef.close();
-              // }
+              if(check_for_merge){
+                solutions_path += "/check_merge"; 
+              }
 
-              // DMatrix<double> computedFn = model.Psi()*model.f();
-              // const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-              // std::ofstream filefn(solutions_path + "/fn.csv");
-              // if (filefn.is_open()){
-              //   filefn << computedFn.format(CSVFormatfn);
-              //   filefn.close();
-              // }
+              // Save C++ solution 
+              DMatrix<double> computedF = model.f();
+              const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+              std::ofstream filef(solutions_path + "/f.csv");
+              if (filef.is_open()){
+                filef << computedF.format(CSVFormatf);
+                filef.close();
+              }
 
-              //count_l += 1; 
+              DMatrix<double> computedFn = model.Psi()*model.f();
+              const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+              std::ofstream filefn(solutions_path + "/fn.csv");
+              if (filefn.is_open()){
+                filefn << computedFn.format(CSVFormatfn);
+                filefn.close();
+              }
+
+              // count_l += 1; 
             }
       }
     }

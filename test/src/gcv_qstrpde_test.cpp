@@ -297,11 +297,18 @@ TEST(sqrpde_time_test_gcv, laplacian_nonparametric_samplingatlocations_timelocat
     // std::string R_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/models/space_time/Test_3"; 
 
     std::vector<double> alphas =  {0.1}; // , 0.5, 0.9};  
-    std::vector<std::string> data_types = {"a"};  // "all" per il test senza missing
+    std::vector<std::string> data_types = {"d"};  // "all" per il test senza missing
     // std::string p_string = "70";  // 50
-    std::vector<std::string> p_string_vec = { "50"};
+    std::vector<std::string> p_string_vec = {"50"};
     // std::string lambda_selection_type = "gcv_smooth_eps1e-1";   //  +0
     std::vector<std::string> lambda_selection_type_vec = {"gcv_smooth_eps1e-1"}; // "gcv_smooth_eps1e-3", "gcv_smooth_eps1e-1", "gcv_smooth_eps1e+0"
+    bool check_for_merge = true; 
+    bool no_init = false;
+    bool exactGCV = false; 
+    bool no_switch = false;
+    bool artificial_weights = true; 
+
+    bool save = false; 
 
     // for stochasticEDF
     std::size_t seed = 438172;
@@ -489,109 +496,139 @@ TEST(sqrpde_time_test_gcv, laplacian_nonparametric_samplingatlocations_timelocat
           std::cout << "---------------Simulation #" << sim << "--------------" << std::endl; 
 
             for(double alpha : alphas){
-          unsigned int alpha_int = alpha*100; 
-          std::string alpha_string = std::to_string(alpha_int);
-          std::cout << "--------alpha=" << alpha_string << "%" << std::endl;
-          QSRPDE<SpaceTimeSeparable> model(space_penalty, time_penalty, Sampling::pointwise, alpha);
+              unsigned int alpha_int = alpha*100; 
+              std::string alpha_string = std::to_string(alpha_int);
+              std::cout << "--------alpha=" << alpha_string << "%" << std::endl;
+              QSRPDE<SpaceTimeSeparable> model(space_penalty, time_penalty, Sampling::pointwise, alpha);
 
-          // load data from .csv files
-          DMatrix<double> y; 
-          if(data_type == "all")
-            y = read_csv<double>(R_path + "/simulations/all_new/sim_" + std::to_string(sim) + "/y_all.csv");  // ATT: MESSO NEW
-          else
-            y = read_csv<double>(R_path + "/simulations/miss_strategy_" + data_type + "/p_" + p_string + "/sim_" + std::to_string(sim) + "/y.csv");
+              // load data from .csv files
+              DMatrix<double> y; 
+              if(data_type == "all")
+                y = read_csv<double>(R_path + "/simulations/all_new/sim_" + std::to_string(sim) + "/y_all.csv");  // ATT: MESSO NEW
+              else
+                y = read_csv<double>(R_path + "/simulations/miss_strategy_" + data_type + "/p_" + p_string + "/sim_" + std::to_string(sim) + "/y.csv");
 
-          if(alpha_string == "10"){
-                lambdas_d = lambdas10_d; 
-                lambdas_t = lambdas10_t;
-                lambdas_d_t = lambdas10_d_t;
+              if(alpha_string == "10"){
+                    lambdas_d = lambdas10_d; 
+                    lambdas_t = lambdas10_t;
+                    lambdas_d_t = lambdas10_d_t;
+                }
+              if(alpha_string == "50"){
+                    lambdas_d = lambdas50_d; 
+                    lambdas_t = lambdas50_t;
+                    lambdas_d_t = lambdas50_d_t;
+                }  
+              if(alpha_string == "90"){
+                    lambdas_d = lambdas90_d; 
+                    lambdas_t = lambdas90_t;
+                    lambdas_d_t = lambdas90_d_t;
+                }
+
+              // set model's data
+              model.set_spatial_locations(space_locs);
+              model.set_temporal_locations(time_locs);
+
+              if(lambda_selection_type == "gcv_smooth_eps1e-3")
+                model.set_eps_power(-3.0);
+              if(lambda_selection_type == "gcv_smooth_eps1e-2")
+                model.set_eps_power(-2.0);
+              if(lambda_selection_type == "gcv_smooth_eps1e-1.5")
+                model.set_eps_power(-1.5);
+              if(lambda_selection_type == "gcv_smooth_eps1e-1")
+                model.set_eps_power(-1.0);
+              if(lambda_selection_type == "gcv_smooth_eps1e-0.5")
+                model.set_eps_power(-0.5);
+              if(lambda_selection_type == "gcv_smooth_eps1e+0")
+                model.set_eps_power(0.0);
+              if(lambda_selection_type == "gcv_smooth_eps1e+0.5")
+                model.set_eps_power(0.5);
+              if(lambda_selection_type == "gcv_smooth_eps1e+1")
+                model.set_eps_power(1.0);
+
+              std::string solutions_path; 
+              if(data_type == "all")
+                solutions_path = R_path + "/simulations/all_new/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + path_mesh + "/" + lambda_selection_type; 
+              else
+                solutions_path = R_path + "/simulations/miss_strategy_" + data_type + "/p_" + p_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + 
+                                path_mesh + "/" + lambda_selection_type;
+
+              std::cout << "Solution path: " << solutions_path << std::endl ; 
+
+              BlockFrame<double, int> df;
+              df.stack(OBSERVATIONS_BLK, y);
+              model.set_data(df);
+              model.init();
+
+              // // exact
+              // auto GCV = model.gcv<ExactEDF>();
+
+              // stochastic
+              auto GCV = model.gcv<StochasticEDF>(MC_run, seed);
+
+              // optimize GCV
+              Grid<fdapde::Dynamic> opt;
+              opt.optimize(GCV, lambdas_d_t);
+              SVector<2> best_lambda = opt.optimum();
+
+              // if(check_for_merge){
+              //   if(no_init){
+              //     solutions_path += "/check_merge_no_init";
+              //   } else{
+              //     if(exactGCV){
+              //       solutions_path += "/check_merge_exactGCV"; 
+              //     }
+              //     if(no_switch){
+              //       solutions_path += "/check_merge_no_switch"; 
+              //     }
+              //     if(!no_switch && !exactGCV){
+              //       solutions_path += "/check_merge"; 
+              //     }
+                    
+              //   }
+                
+              // }
+
+              if(check_for_merge){
+                if(artificial_weights){
+                  solutions_path += "/check_merge_weights";
+                } else{
+                  solutions_path += "/check_merge";
+                }
+                 
+              }
+
+              if(save){
+                // Save lambda sequence 
+                std::ofstream fileLambda_S_Seq(solutions_path + "/lambdas_S_seq.csv");
+                for(std::size_t i = 0; i < lambdas_d.size(); ++i) 
+                    fileLambda_S_Seq << std::setprecision(16) << lambdas_d[i] << "\n"; 
+                fileLambda_S_Seq.close();
+
+                std::ofstream fileLambda_T_Seq(solutions_path + "/lambdas_T_seq.csv");
+                for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
+                    fileLambda_T_Seq << std::setprecision(16) << lambdas_t[i] << "\n"; 
+                fileLambda_T_Seq.close();
+
+                // Save Lambda opt
+                std::ofstream fileLambdaoptS(solutions_path + "/lambda_s_opt.csv");
+                if(fileLambdaoptS.is_open()){
+                  fileLambdaoptS << std::setprecision(16) << best_lambda[0];
+                  fileLambdaoptS.close();
+                }
+                std::ofstream fileLambdaoptT(solutions_path + "/lambda_t_opt.csv");
+                if (fileLambdaoptT.is_open()){
+                  fileLambdaoptT << std::setprecision(16) << best_lambda[1];
+                  fileLambdaoptT.close();
+                }
+                // Save GCV scores
+                std::ofstream fileGCV_scores(solutions_path + "/gcv_scores.csv");
+                for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+                  fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n" ; 
+
+                fileGCV_scores.close();
+              }
+
             }
-          if(alpha_string == "50"){
-                lambdas_d = lambdas50_d; 
-                lambdas_t = lambdas50_t;
-                lambdas_d_t = lambdas50_d_t;
-            }  
-          if(alpha_string == "90"){
-                lambdas_d = lambdas90_d; 
-                lambdas_t = lambdas90_t;
-                lambdas_d_t = lambdas90_d_t;
-            }
-
-          // set model's data
-          model.set_spatial_locations(space_locs);
-          model.set_temporal_locations(time_locs);
-
-          if(lambda_selection_type == "gcv_smooth_eps1e-3")
-            model.set_eps_power(-3.0);
-          if(lambda_selection_type == "gcv_smooth_eps1e-2")
-            model.set_eps_power(-2.0);
-          if(lambda_selection_type == "gcv_smooth_eps1e-1.5")
-            model.set_eps_power(-1.5);
-          if(lambda_selection_type == "gcv_smooth_eps1e-1")
-            model.set_eps_power(-1.0);
-          if(lambda_selection_type == "gcv_smooth_eps1e-0.5")
-            model.set_eps_power(-0.5);
-          if(lambda_selection_type == "gcv_smooth_eps1e+0")
-            model.set_eps_power(0.0);
-          if(lambda_selection_type == "gcv_smooth_eps1e+0.5")
-            model.set_eps_power(0.5);
-          if(lambda_selection_type == "gcv_smooth_eps1e+1")
-            model.set_eps_power(1.0);
-
-          std::string solutions_path; 
-          if(data_type == "all")
-            solutions_path = R_path + "/simulations/all_new/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + path_mesh + "/" + lambda_selection_type; 
-          else
-            solutions_path = R_path + "/simulations/miss_strategy_" + data_type + "/p_" + p_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + 
-                             path_mesh + "/" + lambda_selection_type ;
-
-          std::cout << "Solution path: " << solutions_path << std::endl ; 
-
-          BlockFrame<double, int> df;
-          df.stack(OBSERVATIONS_BLK, y);
-          model.set_data(df);
-          model.init();
-
-          // // exact
-          // auto GCV = model.gcv<ExactEDF>();
-
-          // stochastic
-          auto GCV = model.gcv<StochasticEDF>(MC_run, seed);
-
-          // optimize GCV
-          Grid<fdapde::Dynamic> opt;
-          opt.optimize(GCV, lambdas_d_t);
-          SVector<2> best_lambda = opt.optimum();
-
-          // // Save lambda sequence 
-          // std::ofstream fileLambda_S_Seq(solutions_path + "/lambdas_S_seq.csv");
-          // for(std::size_t i = 0; i < lambdas_d.size(); ++i) 
-          //     fileLambda_S_Seq << std::setprecision(16) << lambdas_d[i] << "\n"; 
-          // fileLambda_S_Seq.close();
-
-          // std::ofstream fileLambda_T_Seq(solutions_path + "/lambdas_T_seq.csv");
-          // for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
-          //     fileLambda_T_Seq << std::setprecision(16) << lambdas_t[i] << "\n"; 
-          // fileLambda_T_Seq.close();
-
-          // // Save Lambda opt
-          // std::ofstream fileLambdaoptS(solutions_path + "/lambda_s_opt.csv");
-          // if(fileLambdaoptS.is_open()){
-          //   fileLambdaoptS << std::setprecision(16) << best_lambda[0];
-          //   fileLambdaoptS.close();
-          // }
-          // std::ofstream fileLambdaoptT(solutions_path + "/lambda_t_opt.csv");
-          // if (fileLambdaoptT.is_open()){
-          //   fileLambdaoptT << std::setprecision(16) << best_lambda[1];
-          //   fileLambdaoptT.close();
-          // }
-          // // Save GCV scores
-          // std::ofstream fileGCV_scores(solutions_path + "/gcv_scores.csv");
-          // for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-          //   fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n" ; 
-
-          // fileGCV_scores.close();
-        }
   
           }
       
