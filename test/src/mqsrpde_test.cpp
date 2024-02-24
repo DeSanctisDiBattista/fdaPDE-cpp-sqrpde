@@ -1061,7 +1061,7 @@ TEST(mqsrpde_test8, laplacian_nonparametric_samplingatlocations) {
     MeshLoader<Mesh2D> domain("unit_square_test8");
     const std::string lambda_selection = "gcv_smooth_eps1e-1"; 
     const std::string pde_type = "_casc";    // "_Ktrue" "_lap" "_casc"
-    const bool single_est = true;
+    const bool single_est = false;
     const bool mult_est = true; 
     const std::vector<std::string> methods = {"mult"};    // "mult", "PP", "PP_new"
 
@@ -1082,8 +1082,9 @@ TEST(mqsrpde_test8, laplacian_nonparametric_samplingatlocations) {
     // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
     // define statistical model
-    std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 
-                                  0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99}; 
+    // std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 
+    //                               0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99}; 
+    std::vector<double> alphas = {0.25, 0.50}; 
 
     // Read locs and X 
     DMatrix<double> loc = read_csv<double>(R_path + "/data/locs.csv");
@@ -1235,84 +1236,84 @@ TEST(mqsrpde_test8, laplacian_nonparametric_samplingatlocations) {
                 model.init();
                 model.solve();
 
-                // Save solution
-                if(method == "mult"){
-                    DMatrix<double> computedF = model.f();
-                    const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(solution_path + "/f_all.csv");
-                    if(filef.is_open()){
-                        filef << computedF.format(CSVFormatf);
-                        filef.close();
-                    }
+            //     // Save solution
+            //     if(method == "mult"){
+            //         DMatrix<double> computedF = model.f();
+            //         const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filef(solution_path + "/f_all.csv");
+            //         if(filef.is_open()){
+            //             filef << computedF.format(CSVFormatf);
+            //             filef.close();
+            //         }
 
-                    DMatrix<double> computedFn = model.Psi_mult()*model.f();
-                    const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(solution_path + "/fn_all.csv");
-                    if(filefn.is_open()){
-                        filefn << computedFn.format(CSVFormatfn);
-                        filefn.close();
-                    }
+            //         DMatrix<double> computedFn = model.Psi_mult()*model.f();
+            //         const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filefn(solution_path + "/fn_all.csv");
+            //         if(filefn.is_open()){
+            //             filefn << computedFn.format(CSVFormatfn);
+            //             filefn.close();
+            //         }
 
-                    DMatrix<double> computedBeta = model.beta(); 
-                    const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filebeta(solution_path + "/beta_all.csv");
-                    if(filebeta.is_open()){
-                        filebeta << computedBeta.format(CSVFormatBeta);
-                        filebeta.close();
-                    }
-                } 
-                if(method == "PP"){
-                    DMatrix<double> computedF = model.f();
-                    const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/f_all" + pde_type + "_postproc.csv");
-                    if(filef.is_open()){
-                        filef << computedF.format(CSVFormatf);
-                        filef.close();
-                    }
+            //         DMatrix<double> computedBeta = model.beta(); 
+            //         const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filebeta(solution_path + "/beta_all.csv");
+            //         if(filebeta.is_open()){
+            //             filebeta << computedBeta.format(CSVFormatBeta);
+            //             filebeta.close();
+            //         }
+            //     } 
+            //     if(method == "PP"){
+            //         DMatrix<double> computedF = model.f();
+            //         const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filef(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/f_all" + pde_type + "_postproc.csv");
+            //         if(filef.is_open()){
+            //             filef << computedF.format(CSVFormatf);
+            //             filef.close();
+            //         }
 
-                    DMatrix<double> computedFn = model.Psi_mult()*model.f();
-                    const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/fn_all" + pde_type + "_postproc.csv");
-                    if(filefn.is_open()){
-                        filefn << computedFn.format(CSVFormatfn);
-                        filefn.close();
-                    }
+            //         DMatrix<double> computedFn = model.Psi_mult()*model.f();
+            //         const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filefn(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/fn_all" + pde_type + "_postproc.csv");
+            //         if(filefn.is_open()){
+            //             filefn << computedFn.format(CSVFormatfn);
+            //             filefn.close();
+            //         }
 
-                    DMatrix<double> computedBeta = model.beta(); 
-                    const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filebeta(solution_path + "/beta_all.csv");
-                    if(filebeta.is_open()){
-                        filebeta << computedBeta.format(CSVFormatBeta);
-                        filebeta.close();
-                    }
+            //         DMatrix<double> computedBeta = model.beta(); 
+            //         const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filebeta(solution_path + "/beta_all.csv");
+            //         if(filebeta.is_open()){
+            //             filebeta << computedBeta.format(CSVFormatBeta);
+            //             filebeta.close();
+            //         }
 
-                }
-                if(method == "PP_new"){
-                    DMatrix<double> computedF = model.f();
-                    const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/f_all" + pde_type + "_postproc_new.csv");
-                    if(filef.is_open()){
-                        filef << computedF.format(CSVFormatf);
-                        filef.close();
-                    }
+            //     }
+            //     if(method == "PP_new"){
+            //         DMatrix<double> computedF = model.f();
+            //         const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filef(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/f_all" + pde_type + "_postproc_new.csv");
+            //         if(filef.is_open()){
+            //             filef << computedF.format(CSVFormatf);
+            //             filef.close();
+            //         }
 
-                    DMatrix<double> computedFn = model.Psi_mult()*model.f();
-                    const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/fn_all" + pde_type + "_postproc_new.csv");
-                    if(filefn.is_open()){
-                        filefn << computedFn.format(CSVFormatfn);
-                        filefn.close();
-                    }
+            //         DMatrix<double> computedFn = model.Psi_mult()*model.f();
+            //         const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filefn(R_path + "/data/simulations/sim_" + std::to_string(sim) + "/competitors/fn_all" + pde_type + "_postproc_new.csv");
+            //         if(filefn.is_open()){
+            //             filefn << computedFn.format(CSVFormatfn);
+            //             filefn.close();
+            //         }
 
-                    DMatrix<double> computedBeta = model.beta(); 
-                    const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filebeta(solution_path + "/beta_all.csv");
-                    if(filebeta.is_open()){
-                        filebeta << computedBeta.format(CSVFormatBeta);
-                        filebeta.close();
-                    }
+            //         DMatrix<double> computedBeta = model.beta(); 
+            //         const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+            //         std::ofstream filebeta(solution_path + "/beta_all.csv");
+            //         if(filebeta.is_open()){
+            //             filebeta << computedBeta.format(CSVFormatBeta);
+            //             filebeta.close();
+            //         }
 
-                }
+            //     }
 
 
             }

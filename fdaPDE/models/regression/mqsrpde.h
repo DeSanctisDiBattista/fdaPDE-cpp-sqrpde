@@ -576,7 +576,18 @@ template <typename RegularizationType_>
 
                 // prepare rhs of linear system (TODO: generalize to non zero rhs)
                 b_.resize(A_.rows());
-                b_.block(h_*n_basis(),0, h_*n_basis(),1) = DVector<double>::Zero(h_*n_basis());  // b_g = 0 
+                // assemble b_g = (lambda_1*u, ..., lambda_h*u)' 
+                DVector<double> b_g = u().replicate(h_, 1);   // u_1 = ... = u_h
+                std::size_t count_lambda = 0; 
+                for(std::size_t ind = 0; ind < h_*n_basis(); ind+=n_basis()){
+                    b_g(ind) *= lambdas_D(count_lambda);   
+                    count_lambda++; 
+                }
+                // b_.block(h_*n_basis(),0, h_*n_basis(),1) = DVector<double>::Zero(h_*n_basis());  // b_g = 0 
+                b_.block(h_*n_basis(),0, h_*n_basis(),1) = b_g; 
+                // // check b_g
+                // std::cout << "b_g size: " << b_g.size() << "=" << h_*n_basis() << std::endl; 
+                // std::cout << "b_g norm inf: " << b_g.cwiseAbs().maxCoeff() << std::endl; 
 
                 DVector<double> sol; // room for problem' solution      
                 

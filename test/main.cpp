@@ -15,7 +15,7 @@
 // #include "src/gsrpde_test.cpp"
 // #include "src/qsrpde_test.cpp"
 // #include "src/qstrpde_test.cpp"
-// #include "src/mqsrpde_test.cpp"
+#include "src/mqsrpde_test.cpp"
 // // #include "src/kcv_srpde_test.cpp"
 
 // // functional test suite
@@ -24,7 +24,7 @@
 // #include "src/centering_test.cpp"
 
 // // Case study 
-#include  "src/case_study.cpp"
+// #include  "src/case_study.cpp"
 // #include  "src/case_study_MQSRPDE.cpp"
 
 
