@@ -98,6 +98,8 @@ template <typename Model_> class FPIRLS {
             k_++; J_old = J_new;
 	    J_new = m_->data_loss() + m_->ftPf(m_->lambda(), solver_.f(), solver_.g());
         }
+
+        // std::cout << "fpirl niter = " << k_ << std::endl ; 
         return;
     }
     // sets an externally defined solver

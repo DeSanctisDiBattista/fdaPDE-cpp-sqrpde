@@ -41,340 +41,340 @@ using fdapde::testing::read_csv;
 using fdapde::models::not_nan; 
 
 
-// // gcv  
+// gcv  
 
-// TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_separable_monolithic_missingdata) {
+TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_separable_monolithic_missingdata) {
 
-//     std::string pollutant = "NO2";   // PM10 NO2
+    std::string pollutant = "NO2";   // PM10 NO2
 
-//     const std::string type_locs = "all";   // "reduced" "all"
+    const std::string type_locs = "all";   // "reduced" "all"
 
-//     const std::string type_space_mesh = "coarse";   // coarse ---> CAMBIA MESH SOTTO !!! 
+    const std::string type_space_mesh = "coarse";   // coarse ---> CAMBIA MESH SOTTO !!! 
     
-//     const std::string type_data = "/data_original";  // "data_original"  ---> MODIFICA ANCHE GIU'lettura dati !!!
+    const std::string type_data = "/data_original";  // "data_original"  ---> MODIFICA ANCHE GIU'lettura dati !!!
 
-//     const std::string time_step = "by_week";   // "" "by_day" "by_week"
+    const std::string time_step = "by_week";   // "" "by_day" "by_week"
 
-//     std::string gcv_type = "stochastic";   // "exact" "stochastic"  ---> MODIFICA ANCHE GIU'!
-//     std::size_t seed = 438172;
-//     unsigned int MC_run = 100; 
+    std::string gcv_type = "stochastic";   // "exact" "stochastic"  ---> MODIFICA ANCHE GIU'!
+    std::size_t seed = 438172;
+    unsigned int MC_run = 100; 
 
-//     std::string est_type = "quantile";    // mean quantile
-//     std::vector<double> alphas = {0.5};     //  {0.5, 0.9, 0.95};     
+    std::string est_type = "quantile";    // mean quantile
+    std::vector<double> alphas = {0.99};     //  {0.5, 0.9, 0.95};     
 
-//     std::string lambda_selection_type = "gcv_smooth_eps1e+0";
+    std::string lambda_selection_type = "gcv_smooth_eps1e-0.5";
 
-//     // // Marco 
-//     // std::string path_data = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia/dati_Cpp/" + pollutant; 
+    // // Marco 
+    // std::string path_data = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia/dati_Cpp/" + pollutant; 
     
-//     // std::string solutions_path; 
-//     // if(est_type == "mean")
-//     //     solutions_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia/STRPDE/" + pollutant + "/gcv_Cpp_" + gcv_type; 
-//     // if(est_type == "quantile")
-//     //     solutions_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia/QSTRPDE/" + pollutant + "/gcv_Cpp_" + gcv_type; 
+    // std::string solutions_path; 
+    // if(est_type == "mean")
+    //     solutions_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia/STRPDE/" + pollutant + "/gcv_Cpp_" + gcv_type; 
+    // if(est_type == "quantile")
+    //     solutions_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia/QSTRPDE/" + pollutant + "/gcv_Cpp_" + gcv_type; 
 
-//     // Ilenia 
-//     std::string path_data = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia/dati_Cpp/" + pollutant + "/" + time_step ; 
-//     std::string solutions_path; 
-//     if(est_type == "mean")
-//         solutions_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia/STRPDE/" + pollutant + "/" + time_step + "/gcv_Cpp_" + gcv_type; 
-//     if(est_type == "quantile")
-//         solutions_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia/QSTRPDE/" + pollutant +"/" + time_step + "/gcv_Cpp_" + gcv_type; 
+    // Ilenia 
+    std::string path_data = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia/dati_Cpp/" + pollutant + "/" + time_step ; 
+    std::string solutions_path; 
+    if(est_type == "mean")
+        solutions_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia/STRPDE/" + pollutant + "/" + time_step + "/gcv_Cpp_" + gcv_type; 
+    if(est_type == "quantile")
+        solutions_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia/QSTRPDE/" + pollutant +"/" + time_step + "/gcv_Cpp_" + gcv_type; 
 
 
-//     // lambdas sequence 
-//     std::vector<DVector<double>> lambdas_d_t;
-//     std::vector<double> lambdas_d;
-//     std::vector<double> lambdas_t;
+    // lambdas sequence 
+    std::vector<DVector<double>> lambdas_d_t;
+    std::vector<double> lambdas_d;
+    std::vector<double> lambdas_t;
 
-//     std::vector<double> lambdas50_d; std::vector<double> lambdas50_t; std::vector<DVector<double>> lambdas50_d_t; 
-//     std::vector<double> lambdas90_d; std::vector<double> lambdas90_t; std::vector<DVector<double>> lambdas90_d_t; 
-//     std::vector<double> lambdas95_d; std::vector<double> lambdas95_t; std::vector<DVector<double>> lambdas95_d_t;
+    std::vector<double> lambdas50_d; std::vector<double> lambdas50_t; std::vector<DVector<double>> lambdas50_d_t; 
+    std::vector<double> lambdas90_d; std::vector<double> lambdas90_t; std::vector<DVector<double>> lambdas90_d_t; 
+    std::vector<double> lambdas95_d; std::vector<double> lambdas95_t; std::vector<DVector<double>> lambdas95_d_t;
 
-//     if(est_type == "mean"){
-//         for(double xs = -4.0; xs <= -1.0; xs += 0.05)
-//             lambdas_d.push_back(std::pow(10,xs));
+    if(est_type == "mean"){
+        for(double xs = -4.0; xs <= -1.0; xs += 0.05)
+            lambdas_d.push_back(std::pow(10,xs));
 
-//         for(double xt = +3.0; xt <= +3.1; xt += 2.0)
-//             lambdas_t.push_back(std::pow(10,xt));    
+        for(double xt = +3.0; xt <= +3.1; xt += 2.0)
+            lambdas_t.push_back(std::pow(10,xt));    
 
-//         for(auto i = 0; i < lambdas_d.size(); ++i)
-//             for(auto j = 0; j < lambdas_t.size(); ++j) 
-//                 lambdas_d_t.push_back(SVector<2>(lambdas_d[i], lambdas_t[j]));
-//     }
-//     if(est_type == "quantile"){
+        for(auto i = 0; i < lambdas_d.size(); ++i)
+            for(auto j = 0; j < lambdas_t.size(); ++j) 
+                lambdas_d_t.push_back(SVector<2>(lambdas_d[i], lambdas_t[j]));
+    }
+    if(est_type == "quantile"){
 
-//         // 50% 
-//         for(double xs = -10.0; xs <= -3.0; xs += 1.0)
-//             lambdas50_d.push_back(std::pow(10,xs));
+        // 50% 
+        for(double xs = -10.0; xs <= -3.0; xs += 1.0)
+            lambdas50_d.push_back(std::pow(10,xs));
 
-//         for(double xt = -5.0; xt <= -2.9; xt += 2.0)
-//             lambdas50_t.push_back(std::pow(10,xt));    
+        for(double xt = -5.0; xt <= -2.9; xt += 2.0)
+            lambdas50_t.push_back(std::pow(10,xt));    
 
-//         for(auto i = 0; i < lambdas50_d.size(); ++i)
-//             for(auto j = 0; j < lambdas50_t.size(); ++j) 
-//                 lambdas50_d_t.push_back(SVector<2>(lambdas50_d[i], lambdas50_t[j]));
+        for(auto i = 0; i < lambdas50_d.size(); ++i)
+            for(auto j = 0; j < lambdas50_t.size(); ++j) 
+                lambdas50_d_t.push_back(SVector<2>(lambdas50_d[i], lambdas50_t[j]));
         
 
-//         for(double xs = -11.0; xs <= +2.0; xs += 1.0)
-//             lambdas_d.push_back(std::pow(10,xs));
+        for(double xs = -11.0; xs <= +2.0; xs += 1.0)
+            lambdas_d.push_back(std::pow(10,xs));
 
-//         for(double xt = 0.0; xt <= +1.1; xt += 2.0)
-//             lambdas_t.push_back(std::pow(10,xt)); 
-//         // 90%
-//         for(double xs = -8.0; xs <= -1.0; xs +=1.0)
-//             for(double xt = -3.0; xt <= +1.1; xt +=2.0)  
-//             lambdas90_d_t.push_back(SVector<2>(std::pow(10,xs), std::pow(10,xt)));
-//         // 90%
-//         for(double xs = -8.0; xs <= -1.0; xs +=1.0)
-//             for(double xt = -3.0; xt <= +1.1; xt +=2.0)  
-//             lambdas95_d_t.push_back(SVector<2>(std::pow(10,xs), std::pow(10,xt)));
+        for(double xt = 0.0; xt <= +1.1; xt += 2.0)
+            lambdas_t.push_back(std::pow(10,xt)); 
+        // 90%
+        for(double xs = -8.0; xs <= -1.0; xs +=1.0)
+            for(double xt = -3.0; xt <= +1.1; xt +=2.0)  
+            lambdas90_d_t.push_back(SVector<2>(std::pow(10,xs), std::pow(10,xt)));
+        // 90%
+        for(double xs = -8.0; xs <= -1.0; xs +=1.0)
+            for(double xt = -3.0; xt <= +1.1; xt +=2.0)  
+            lambdas95_d_t.push_back(SVector<2>(std::pow(10,xs), std::pow(10,xt)));
 
-//     }
+    }
 
 
-//     // define temporal domain
-//     unsigned int M = 22;     // DA CAMBIARE !  
-//     std::string M_string = std::to_string(M);
-//     double tf;
-//     if(time_step == "by_week"){
-//         tf = 357.0;    // final time 
-//     }else{
-//         tf = 364.0;    // final time 
-//     }
+    // define temporal domain
+    unsigned int M = 22;     // DA CAMBIARE !  
+    std::string M_string = std::to_string(M);
+    double tf;
+    if(time_step == "by_week"){
+        tf = 357.0;    // final time 
+    }else{
+        tf = 364.0;    // final time 
+    }
         
     
-//     Mesh<1, 1> time_mesh(0, tf, M-1);
-//     // std::cout << " # Time mesh elements = " << time_mesh.n_elements()  << std::endl ; 
-//     // std::cout << "Time mesh elements = " << time_mesh.elements()  << std::endl ; 
-//     // std::cout << "# Time mesh nodes = " << time_mesh.n_nodes()  << std::endl ; 
-//     // std::cout << "Time mesh nodes = " << time_mesh.nodes()  << std::endl ; 
+    Mesh<1, 1> time_mesh(0, tf, M-1);
+    // std::cout << " # Time mesh elements = " << time_mesh.n_elements()  << std::endl ; 
+    // std::cout << "Time mesh elements = " << time_mesh.elements()  << std::endl ; 
+    // std::cout << "# Time mesh nodes = " << time_mesh.n_nodes()  << std::endl ; 
+    // std::cout << "Time mesh nodes = " << time_mesh.nodes()  << std::endl ; 
 
-//     // define spatial domain and regularizing PDE
+    // define spatial domain and regularizing PDE
 
-//     MeshLoader<Mesh2D> domain("mesh_lombardia_coarse");        // ATT: da cambiare in base a type_space_mesh ma con if non funziona
+    MeshLoader<Mesh2D> domain("mesh_lombardia_coarse");        // ATT: da cambiare in base a type_space_mesh ma con if non funziona
 
-//     // if(type_space_mesh == "fine"){
-//     //     MeshLoader<Mesh2D> domain("mesh_lombardia");
-//     // }else{
-//     //     MeshLoader<Mesh2D> domain("mesh_lombardia_coarse");
-//     // }
+    // if(type_space_mesh == "fine"){
+    //     MeshLoader<Mesh2D> domain("mesh_lombardia");
+    // }else{
+    //     MeshLoader<Mesh2D> domain("mesh_lombardia_coarse");
+    // }
     
-//     // import data and locs from files
-//     DMatrix<double> y; DMatrix<double> space_locs; DMatrix<double> time_locs; 
-//     if(type_locs == "reduced"){
-//         if(pollutant == "NO2"){
-//             y = read_csv<double>(path_data + "/NO2_max_2022_Cpp_reduced.csv");
-//         } else{
-//             y = read_csv<double>(path_data + "/PM10_2022_Cpp_reduced.csv");
-//         }
-//         time_locs = read_csv<double>(path_data + "/time_locations_reduced.csv");
-//     } else{
-//         if(pollutant == "NO2"){
-//             y = read_csv<double>(path_data + "/NO2_max_2022_Cpp.csv");   // ATT: CAMBIA TIPO DATI NORMALIZED/RESCALED/NO
-//             time_locs = read_csv<double>(path_data + "/time_locations.csv");
-//         } else{
-//             y = read_csv<double>(path_data + "/PM10_2022.csv");  
-//             time_locs = read_csv<double>(path_data + "/time_locs.csv"); 
-//         }     
-//     }
-//     space_locs = read_csv<double>(path_data + "/locs.csv");
+    // import data and locs from files
+    DMatrix<double> y; DMatrix<double> space_locs; DMatrix<double> time_locs; 
+    if(type_locs == "reduced"){
+        if(pollutant == "NO2"){
+            y = read_csv<double>(path_data + "/NO2_max_2022_Cpp_reduced.csv");
+        } else{
+            y = read_csv<double>(path_data + "/PM10_2022_Cpp_reduced.csv");
+        }
+        time_locs = read_csv<double>(path_data + "/time_locations_reduced.csv");
+    } else{
+        if(pollutant == "NO2"){
+            y = read_csv<double>(path_data + "/NO2_max_2022_Cpp.csv");   // ATT: CAMBIA TIPO DATI NORMALIZED/RESCALED/NO
+            time_locs = read_csv<double>(path_data + "/time_locations.csv");
+        } else{
+            y = read_csv<double>(path_data + "/PM10_2022.csv");  
+            time_locs = read_csv<double>(path_data + "/time_locs.csv"); 
+        }     
+    }
+    space_locs = read_csv<double>(path_data + "/locs.csv");
     
-//     // check dimensions
-//     std::cout << "dim space loc " << space_locs.rows() << " " << space_locs.cols() << std::endl;
-//     std::cout << "dim time loc " << time_locs.rows() << " " << time_locs.cols() << std::endl;
-//     std::cout << "dim y " << y.rows() << " " << y.cols() << std::endl;
+    // check dimensions
+    std::cout << "dim space loc " << space_locs.rows() << " " << space_locs.cols() << std::endl;
+    std::cout << "dim time loc " << time_locs.rows() << " " << time_locs.cols() << std::endl;
+    std::cout << "dim y " << y.rows() << " " << y.cols() << std::endl;
 
-//     BlockFrame<double, int> df;
-//     df.stack(OBSERVATIONS_BLK, y);
+    BlockFrame<double, int> df;
+    df.stack(OBSERVATIONS_BLK, y);
    
-//     // define regularizing PDE in space 
-//     auto Ld = -laplacian<FEM>();
-//     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
-//     PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+    // define regularizing PDE in space 
+    auto Ld = -laplacian<FEM>();
+    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
+    PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
-//     // define regularizing PDE in time
-//     auto Lt = -bilaplacian<SPLINE>();
-//     PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
+    // define regularizing PDE in time
+    auto Lt = -bilaplacian<SPLINE>();
+    PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
-//     if(est_type == "mean"){
+    if(est_type == "mean"){
 
-//         STRPDE<SpaceTimeSeparable, fdapde::monolithic> model(space_penalty, time_penalty, Sampling::pointwise);
+        STRPDE<SpaceTimeSeparable, fdapde::monolithic> model(space_penalty, time_penalty, Sampling::pointwise);
     
-//         // set model's data
-//         model.set_spatial_locations(space_locs);
-//         model.set_temporal_locations(time_locs);
+        // set model's data
+        model.set_spatial_locations(space_locs);
+        model.set_temporal_locations(time_locs);
         
-//         model.set_data(df);
-//         model.init();
+        model.set_data(df);
+        model.init();
 
-//         // define GCV function and grid of \lambda_D values
+        // define GCV function and grid of \lambda_D values
 
-//         // stochastic
-//         auto GCV = model.gcv<StochasticEDF>(MC_run, seed);
-//         // // exact
-//         // auto GCV = model.gcv<ExactEDF>();
+        // stochastic
+        auto GCV = model.gcv<StochasticEDF>(MC_run, seed);
+        // // exact
+        // auto GCV = model.gcv<ExactEDF>();
 
-//         // optimize GCV
-//         Grid<fdapde::Dynamic> opt;
-//         opt.optimize(GCV, lambdas_d_t);
-//         SVector<2> best_lambda = opt.optimum();
+        // optimize GCV
+        Grid<fdapde::Dynamic> opt;
+        opt.optimize(GCV, lambdas_d_t);
+        SVector<2> best_lambda = opt.optimum();
 
-//         // Save lambda sequence 
-//         std::ofstream fileLambda_S_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/lambdas_S_seq.csv");
-//         for(std::size_t i = 0; i < lambdas_d.size(); ++i) 
-//             fileLambda_S_Seq << std::setprecision(16) << lambdas_d[i] << "\n"; 
-//         fileLambda_S_Seq.close();
-
-
-//         std::ofstream fileLambda_T_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/lambdas_T_seq.csv");
-//         for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
-//             fileLambda_T_Seq << std::setprecision(16) << lambdas_t[i] << "\n"; 
-//         fileLambda_T_Seq.close();
-
-//         // Save Lambda opt
-//         std::ofstream fileLambdaoptS(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/lambda_s_opt.csv");
-//         if(fileLambdaoptS.is_open()){
-//             fileLambdaoptS << std::setprecision(16) << best_lambda[0];
-//             fileLambdaoptS.close();
-//         }
-//         std::ofstream fileLambdaoptT(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data + "/lambda_t_opt.csv");
-//         if (fileLambdaoptT.is_open()){
-//             fileLambdaoptT << std::setprecision(16) << best_lambda[1];
-//             fileLambdaoptT.close();
-//         }
-
-//         // Save GCV scores
-//         std::ofstream fileGCV_scores(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/gcv_scores.csv");
-//         for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-//             fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n"; 
-//         fileGCV_scores.close();
-
-//         // Save edfs
-//         std::ofstream fileEDF(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/edfs.csv");
-//         for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
-//             fileEDF << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
-//         fileEDF.close();
-
-//         // Save matrix A
-//         // SpMatrix<double> computedA = model.A();
-
-//         // Eigen::saveMarket(computedA, solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/A");
+        // Save lambda sequence 
+        std::ofstream fileLambda_S_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/lambdas_S_seq.csv");
+        for(std::size_t i = 0; i < lambdas_d.size(); ++i) 
+            fileLambda_S_Seq << std::setprecision(16) << lambdas_d[i] << "\n"; 
+        fileLambda_S_Seq.close();
 
 
-//     }
+        std::ofstream fileLambda_T_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/lambdas_T_seq.csv");
+        for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
+            fileLambda_T_Seq << std::setprecision(16) << lambdas_t[i] << "\n"; 
+        fileLambda_T_Seq.close();
 
-//     if(est_type == "quantile"){
+        // Save Lambda opt
+        std::ofstream fileLambdaoptS(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/lambda_s_opt.csv");
+        if(fileLambdaoptS.is_open()){
+            fileLambdaoptS << std::setprecision(16) << best_lambda[0];
+            fileLambdaoptS.close();
+        }
+        std::ofstream fileLambdaoptT(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data + "/lambda_t_opt.csv");
+        if (fileLambdaoptT.is_open()){
+            fileLambdaoptT << std::setprecision(16) << best_lambda[1];
+            fileLambdaoptT.close();
+        }
+
+        // Save GCV scores
+        std::ofstream fileGCV_scores(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/gcv_scores.csv");
+        for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+            fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n"; 
+        fileGCV_scores.close();
+
+        // Save edfs
+        std::ofstream fileEDF(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/edfs.csv");
+        for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+            fileEDF << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+        fileEDF.close();
+
+        // Save matrix A
+        // SpMatrix<double> computedA = model.A();
+
+        // Eigen::saveMarket(computedA, solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + type_data +"/A");
+
+
+    }
+
+    if(est_type == "quantile"){
         
-//         for(double alpha : alphas){
+        for(double alpha : alphas){
 
-//             unsigned int alpha_int = alpha*100; 
-//             std::string alpha_string = std::to_string(alpha_int); 
+            unsigned int alpha_int = alpha*100; 
+            std::string alpha_string = std::to_string(alpha_int); 
 
-//             std::cout << "----------------ALPHA = " << alpha_string << "----------------" << std::endl; 
+            std::cout << "----------------ALPHA = " << alpha_string << "----------------" << std::endl; 
 
-//             QSRPDE<SpaceTimeSeparable> model(space_penalty, time_penalty, Sampling::pointwise, alpha);
+            QSRPDE<SpaceTimeSeparable> model(space_penalty, time_penalty, Sampling::pointwise, alpha);
 
-//             if(alpha_string == "50"){
-//                 lambdas_d = lambdas50_d; 
-//                 lambdas_t = lambdas50_t;
-//                 lambdas_d_t = lambdas50_d_t;
-//             }
+            if(alpha_string == "50"){
+                lambdas_d = lambdas50_d; 
+                lambdas_t = lambdas50_t;
+                lambdas_d_t = lambdas50_d_t;
+            }
                  
-//             if(alpha_string == "90"){
-//                 lambdas_d = lambdas90_d; 
-//                 lambdas_t = lambdas90_t;
-//                 lambdas_d_t = lambdas90_d_t;
-//             }
+            if(alpha_string == "90"){
+                lambdas_d = lambdas90_d; 
+                lambdas_t = lambdas90_t;
+                lambdas_d_t = lambdas90_d_t;
+            }
                  
-//             if(alpha_string == "95"){
-//                 lambdas_d = lambdas95_d; 
-//                 lambdas_t = lambdas95_t;
-//                 lambdas_d_t = lambdas95_d_t;
-//             }
+            if(alpha_string == "95"){
+                lambdas_d = lambdas95_d; 
+                lambdas_t = lambdas95_t;
+                lambdas_d_t = lambdas95_d_t;
+            }
     
-//             // lambdas_d = lambdas_d_t
+            // lambdas_d = lambdas_d_t
 
 
-//             // set model's data
-//             model.set_spatial_locations(space_locs);
-//             model.set_temporal_locations(time_locs);
+            // set model's data
+            model.set_spatial_locations(space_locs);
+            model.set_temporal_locations(time_locs);
 
-//             model.set_exact_gcv(lambda_selection_type == "gcv");
-//             if(lambda_selection_type == "gcv_smooth_eps1e-3")
-//                 model.set_eps_power(-3.0);
-//             if(lambda_selection_type == "gcv_smooth_eps1e-2")
-//                 model.set_eps_power(-2.0);
-//             if(lambda_selection_type == "gcv_smooth_eps1e-1.5")
-//                 model.set_eps_power(-1.5);
-//             if(lambda_selection_type == "gcv_smooth_eps1e-1")
-//                 model.set_eps_power(-1.0);
-//             if(lambda_selection_type == "gcv_smooth_eps1e+0")
-//                 model.set_eps_power(0.0);
+            model.set_exact_gcv(lambda_selection_type == "gcv");
+            if(lambda_selection_type == "gcv_smooth_eps1e-3")
+                model.set_eps_power(-3.0);
+            if(lambda_selection_type == "gcv_smooth_eps1e-2")
+                model.set_eps_power(-2.0);
+            if(lambda_selection_type == "gcv_smooth_eps1e-1.5")
+                model.set_eps_power(-1.5);
+            if(lambda_selection_type == "gcv_smooth_eps1e-1")
+                model.set_eps_power(-1.0);
+            if(lambda_selection_type == "gcv_smooth_eps1e+0")
+                model.set_eps_power(0.0);
             
-//             model.set_data(df);
-//             model.init();
+            model.set_data(df);
+            model.init();
 
-//             // define GCV function and grid of \lambda_D values
+            // define GCV function and grid of \lambda_D values
 
-//             // stochastic
-//             auto GCV = model.gcv<StochasticEDF>(MC_run, seed);
-//             // // exact
-//             // auto GCV = model.gcv<ExactEDF>();
+            // stochastic
+            auto GCV = model.gcv<StochasticEDF>(MC_run, seed);
+            // // exact
+            // auto GCV = model.gcv<ExactEDF>();
 
-//             // optimize GCV
-//             Grid<fdapde::Dynamic> opt;
-//             opt.optimize(GCV, lambdas_d_t);
-//             SVector<2> best_lambda = opt.optimum();
+            // optimize GCV
+            Grid<fdapde::Dynamic> opt;
+            opt.optimize(GCV, lambdas_d_t);
+            SVector<2> best_lambda = opt.optimum();
 
-//             // Save lambda sequences 
-//             std::ofstream fileLambda_S_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
-//                                             lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambdas_S_seq.csv");
-//             for(std::size_t i = 0; i < lambdas_d.size(); ++i) 
-//                 fileLambda_S_Seq << std::setprecision(16) << lambdas_d[i] << "\n"; 
-//             fileLambda_S_Seq.close();
-//             for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
-//                 std::cout << lambdas_t[i] << "\n"; 
-//             std::ofstream fileLambda_T_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
-//                                             lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambdas_T_seq.csv");
-//             for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
-//                 fileLambda_T_Seq << std::setprecision(16) << lambdas_t[i] << "\n"; 
-//             fileLambda_T_Seq.close();
+            // Save lambda sequences 
+            std::ofstream fileLambda_S_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
+                                            lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambdas_S_seq.csv");
+            for(std::size_t i = 0; i < lambdas_d.size(); ++i) 
+                fileLambda_S_Seq << std::setprecision(16) << lambdas_d[i] << "\n"; 
+            fileLambda_S_Seq.close();
+            for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
+                std::cout << lambdas_t[i] << "\n"; 
+            std::ofstream fileLambda_T_Seq(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
+                                            lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambdas_T_seq.csv");
+            for(std::size_t i = 0; i < lambdas_t.size(); ++i) 
+                fileLambda_T_Seq << std::setprecision(16) << lambdas_t[i] << "\n"; 
+            fileLambda_T_Seq.close();
 
-//             // Save Lambda opt
-//             std::ofstream fileLambdaoptS(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
-//                                             lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambda_s_opt.csv");
-//             if(fileLambdaoptS.is_open()){
-//                 fileLambdaoptS << std::setprecision(16) << best_lambda[0];
-//                 fileLambdaoptS.close();
-//             }
-//             std::ofstream fileLambdaoptT(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
-//                                             lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambda_t_opt.csv");
-//             if (fileLambdaoptT.is_open()){
-//                 fileLambdaoptT << std::setprecision(16) << best_lambda[1];
-//                 fileLambdaoptT.close();
-//             }
-//             // Save GCV scores
-//             std::ofstream fileGCV_scores(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
-//                                             lambda_selection_type + "/alpha_" + alpha_string + type_data + "/gcv_scores.csv");
-//             for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-//                 fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
+            // Save Lambda opt
+            std::ofstream fileLambdaoptS(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
+                                            lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambda_s_opt.csv");
+            if(fileLambdaoptS.is_open()){
+                fileLambdaoptS << std::setprecision(16) << best_lambda[0];
+                fileLambdaoptS.close();
+            }
+            std::ofstream fileLambdaoptT(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
+                                            lambda_selection_type + "/alpha_" + alpha_string + type_data + "/lambda_t_opt.csv");
+            if (fileLambdaoptT.is_open()){
+                fileLambdaoptT << std::setprecision(16) << best_lambda[1];
+                fileLambdaoptT.close();
+            }
+            // Save GCV scores
+            std::ofstream fileGCV_scores(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
+                                            lambda_selection_type + "/alpha_" + alpha_string + type_data + "/gcv_scores.csv");
+            for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+                fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
 
-//             fileGCV_scores.close();
+            fileGCV_scores.close();
 
-//             // Save edfs
-//             std::ofstream fileEDF(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
-//                                             lambda_selection_type + "/alpha_" + alpha_string + type_data + "/edfs.csv");
-//             for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
-//                 fileEDF << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
-//             fileEDF.close();
+            // Save edfs
+            std::ofstream fileEDF(solutions_path + "/" + type_locs + "/N_" + type_space_mesh + "/M_" + M_string + "/" + 
+                                            lambda_selection_type + "/alpha_" + alpha_string + type_data + "/edfs.csv");
+            for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+                fileEDF << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+            fileEDF.close();
 
-//         }
+        }
 
-//     }
+    }
 
       
-// }
+}
 
 
 

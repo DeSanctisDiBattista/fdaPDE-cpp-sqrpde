@@ -143,8 +143,6 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
         for (std::size_t i = 0; i < n_locs(); ++i) {
             if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
         }
-        std::cout << "qsrpde norm: eps=" << eps_ << std::endl;
-        std::cout << "qsrpde norm: n_obs()=" << n_obs() << std::endl; 
         return std::pow(result, 2) / n_obs();
     }
    private:
@@ -156,7 +154,7 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
     FPIRLS<This> fpirls_;          // fpirls algorithm
     std::size_t max_iter_ = 200;   // maximum number of iterations in fpirls before forced stop
-    double tol_ = 1e-6;            // fprils convergence tolerance
+    double tol_ = 1e-8;            // fprils convergence tolerance
     double tol_weights_ = 1e-6;
 
     double eps_ = -1.0;   // pinball loss smoothing factor

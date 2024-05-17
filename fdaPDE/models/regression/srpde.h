@@ -62,6 +62,8 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
             // prepare rhs of linear system
             b_.resize(A_.rows());
             b_.block(n_basis(), 0, n_basis(), 1) = lambda_D() * u();
+            // std::cout << "SRPDE u norm inf: " << u().cwiseAbs().maxCoeff() << std::endl;
+            // std::cout << "SRPDE u norm inf: " << u()(0,0) << "," << u()(4,0) << "," << u()(10,0) << "," << u()(100,0) << std::endl;
             return;
         }
         if (runtime().query(runtime_status::require_W_update)) {

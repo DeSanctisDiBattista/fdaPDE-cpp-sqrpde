@@ -57,12 +57,13 @@ template <typename RegularizationType_>
         bool force_entrance = false; 
 
         // algorithm's parameters 
-        double gamma0_ = 5.;                   // crossing penalty 
+        // (il setting per l'applicazione tesi è con gamma0=5 e max_iter = 200, li ho cambiati per la sim con obs ripetute)
+        double gamma0_ = 5.;                   // crossing penalty   
         double eps_ = 1e-6;                    // crossing tolerance 
         double C_ = 1.5;                       // crossing penalty factor
-        double tolerance_ = 1e-6;              // convergence tolerance 
+        double tolerance_ = 1e-5;              // convergence tolerance 
         double tol_weights_ = 1e-6;            // weights tolerance
-        std::size_t max_iter_ = 500;           // max number of inner iterations 
+        std::size_t max_iter_ = 200;           // max number of inner iterations 
         std::size_t max_iter_global_ = 100;    // max number of outer iterations 
 
         std::size_t k_ = 0;                    // inner iteration index
@@ -578,9 +579,16 @@ template <typename RegularizationType_>
                 b_.resize(A_.rows());
                 // assemble b_g = (lambda_1*u, ..., lambda_h*u)' 
                 DVector<double> b_g = u().replicate(h_, 1);   // u_1 = ... = u_h
+                // std::cout << "u norm inf: " << b_g.cwiseAbs().maxCoeff() << std::endl; 
                 std::size_t count_lambda = 0; 
                 for(std::size_t ind = 0; ind < h_*n_basis(); ind+=n_basis()){
-                    b_g(ind) *= lambdas_D(count_lambda);   
+                    // std::cout << "------------ ind = " << ind << std::endl ; 
+                    // std::cout << "---- lambdas_D( " << count_lambda << " ) = " << lambdas_D(count_lambda) << std::endl ; 
+                    // std::cout << "----- PRE b_g(ind) norm inf: " << b_g.block(ind,0, n_basis(),1).cwiseAbs().maxCoeff() << std::endl;  
+                    
+                    b_g.block(ind,0, n_basis(),1) = lambdas_D(count_lambda)*b_g.block(ind,0, n_basis(),1); 
+                    // b_g(ind, 0) = lambdas_D(count_lambda)*b_g(ind, 0); 
+                    // std::cout << "----- POST b_g(ind) norm inf: " << b_g.block(ind,0, n_basis(),1).cwiseAbs().maxCoeff() << std::endl;  
                     count_lambda++; 
                 }
                 // b_.block(h_*n_basis(),0, h_*n_basis(),1) = DVector<double>::Zero(h_*n_basis());  // b_g = 0 
