@@ -24,8 +24,8 @@
 // #include "src/centering_test.cpp"
 
 // // Case study 
-// #include  "src/case_study_2.cpp"
-#include "src/case_study_MQSRPDE.cpp"
+#include  "src/case_study_2.cpp"
+// #include "src/case_study_MQSRPDE.cpp"
 
 
 int main(int argc, char **argv){

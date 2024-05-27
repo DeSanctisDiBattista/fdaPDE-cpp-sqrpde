@@ -74,6 +74,10 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
         // execute FPIRLS_ for minimization of functional \norm{V^{-1/2}(y - \mu)}^2 + \lambda \int_D (Lf - u)^2
         fpirls_.compute();
+
+        // Debug -> salva il numero di iterazioni (per il test obs ripetute)
+        n_iter_qsrpde_ = fpirls_.n_iter();
+
         // fpirls_ converged: store solution estimates
         W_ = fpirls_.solver().W();
         f_ = fpirls_.solver().f();
@@ -136,6 +140,11 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     const DVector<double>& py() const { return py_; }
     const DVector<double>& pW() const { return pW_; }
     const fdapde::SparseLU<SpMatrix<double>>& invA() const { return invA_; }
+
+    // Debug -> salva il numero di iterazioni (per il test obs ripetute)
+    const std::size_t& n_iter_qsrpde() const {return n_iter_qsrpde_; }
+
+
     // GCV support
     double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const {
 
@@ -154,8 +163,11 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
     FPIRLS<This> fpirls_;          // fpirls algorithm
     std::size_t max_iter_ = 200;   // maximum number of iterations in fpirls before forced stop
-    double tol_ = 1e-8;            // fprils convergence tolerance
+    double tol_ = 1e-6;            // fprils convergence tolerance
     double tol_weights_ = 1e-6;
+
+    // Debug -> salva il numero di iterazioni (per il test obs ripetute)
+    std::size_t n_iter_qsrpde_ = 0;
 
     double eps_ = -1.0;   // pinball loss smoothing factor
     double pinball_loss(double x, double eps) const {   // quantile check function

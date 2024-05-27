@@ -51,6 +51,8 @@ template <typename Model_> class FPIRLS {
   
     // initialize internal smoothing solver
     void init() {
+        std::cout << "---- ATTENZIONE ALZATO IL NUMERO DI max_iter IN FPIRLS !! ----" << std::endl ; 
+
         if (!solver_) {   // default solver initialization
             using SolverType = typename std::conditional<
               is_space_only<Model>::value, SRPDE,
@@ -68,9 +70,6 @@ template <typename Model_> class FPIRLS {
         solver_.set_lambda(m_->lambda());     // derive smoothing level
         solver_.set_mask(m_->masked_obs());   // derive missing and masking data pattern
 
-        // std::cout << "fpirls init: solver::n_tot " << solver_.y().size() << std::endl;
-        //std::cout << "fpirls init: solver::n " << solver_.n_obs() << std::endl;
-
     }
     // executes the FPIRLS algorithm
     void compute() {
@@ -79,6 +78,10 @@ template <typename Model_> class FPIRLS {
         // objective functional value at consecutive iterations
         double J_old = tolerance_ + 1, J_new = 0;
 	k_ = 0;
+
+    // Debug
+    std::cout << "max_iter_ in fpilrs = " << max_iter_ << std::endl ; 
+
         while (k_ < max_iter_ && std::abs(J_new - J_old) > tolerance_) {
             // std::cout << "fpirls iter " << k_ << std::endl; 
             m_->fpirls_compute_step();   // model specific computation of py_ and pW_

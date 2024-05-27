@@ -1344,11 +1344,14 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
     MeshLoader<Mesh2D> domain("unit_square_test7");
     const std::string lambda_selection = "gcv_smooth_eps1e-1"; 
     const std::string pde_type = "_lap";    // "_Ktrue" "_lap" "_casc"
-    const bool single_est = false;
-    const bool mult_est = true; 
+    const bool single_est = true;
+    const bool mult_est = false; 
+
+    const std::string max_iter_string = "_maxiter400";     // "_400" per il caso in cui max_iter di fpirls è stato alzato a 400 (si parla di stima singola)
+                                                    // "" per il caso classico con max_iter=200
 
     // usare le obs ripetute?
-    bool bool_obs_rip = true;
+    bool bool_obs_rip = false;
 
     const std::vector<std::string> methods = {"mult"};    // "mult", "PP", "PP_new"
 
@@ -1369,14 +1372,14 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
     // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
     // define statistical model
-    std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 
-                                  0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};
+    // std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 
+    //                               0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};
 
     // std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.75, 
     //                              0.91, 0.92, 0.93, 0.94, 0.96, 0.97, 0.98};
 
 
-    // std::vector<double> alphas = {0.50, 0.90, 0.95, 0.99}; 
+    std::vector<double> alphas = {0.50, 0.90, 0.95, 0.99}; 
 
     // Read locs
     DMatrix<double> loc ; 
@@ -1386,7 +1389,7 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
         loc = read_csv<double>(R_path + "/data" + "/locs.csv"); 
 
     // Simulations 
-    const unsigned int n_sim = 5; 
+    const unsigned int n_sim = 10; 
     // Single estimations
     if(single_est){
         std::cout << "-----------------------SINGLE running---------------" << std::endl;
@@ -1444,7 +1447,7 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
                     // Save solution
                     DMatrix<double> computedF = model.f();
                     const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(solution_path + "/f_" + std::to_string(alpha_int) + ".csv");
+                    std::ofstream filef(solution_path + "/f_" + std::to_string(alpha_int) + max_iter_string + ".csv");
                     if(filef.is_open()){
                         filef << computedF.format(CSVFormatf);
                         filef.close();
@@ -1452,11 +1455,18 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
 
                     DMatrix<double> computedFn = model.Psi()*model.f();
                     const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(solution_path + "/fn_" + std::to_string(alpha_int) + ".csv");
+                    std::ofstream filefn(solution_path + "/fn_" + std::to_string(alpha_int) + max_iter_string + ".csv");
                     if(filefn.is_open()){
                         filefn << computedFn.format(CSVFormatfn);
                         filefn.close();
                     }
+
+                    // Save number of iterations
+                    unsigned int computedNiter = model.n_iter_qsrpde();
+                    std::ofstream ofile_niter;
+                    ofile_niter.open(solution_path + "/niter_" + std::to_string(alpha_int) + max_iter_string + ".txt");
+                    ofile_niter << computedNiter; 
+                    ofile_niter.close(); 
  
                 }
 
