@@ -28,11 +28,14 @@ class Off {
    private:
     DVector<double> lambda_;
    public:
-    template <typename LambdaType> Off(LambdaType&& lambda) : lambda_(lambda) {
-      static_assert(std::is_base_of<Eigen::MatrixBase<LambdaType>, LambdaType>::value);
-      fdapde_assert(lambda.cols() == 1 && (lambda.rows() == 1 || lambda.rows() == 2));
+    Off() = default;
+    ConfiguredCalibrator<Off> operator()(const DVector<double>& lambda) {
+      fdapde_assert(lambda.rows() == 1 || lambda.rows() == 2);
+      lambda_ = lambda;
+      return *this;
     }
-    template <typename ModelType_> DVector<double> fit(ModelType_& model) { return lambda_; }
+    template <typename ModelType_> DVector<double> fit([[maybe_unused]] ModelType_& model) { return lambda_; }
+    const DVector<double>& optimum() const { return lambda_; }   // for compatibility with other calibrators only
 };
 
 }   // namespace calibration
