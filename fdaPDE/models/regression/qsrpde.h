@@ -143,6 +143,7 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     const DVector<double>& py() const { return py_; }
     const DVector<double>& pW() const { return pW_; }
     const fdapde::SparseLU<SpMatrix<double>>& invA() const { return invA_; }
+    //const double& alpha() const { return alpha_; }
 
     // Debug -> salva il numero di iterazioni (per il test obs ripetute)
     const std::size_t& n_iter_qsrpde() const {return n_iter_qsrpde_; }

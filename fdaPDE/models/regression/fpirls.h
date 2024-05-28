@@ -51,8 +51,6 @@ template <typename Model_> class FPIRLS {
   
     // initialize internal smoothing solver
     void init() {
-        std::cout << "---- ATTENZIONE ALZATO IL NUMERO DI max_iter IN FPIRLS !! ----" << std::endl ; 
-
         if (!solver_) {   // default solver initialization
             using SolverType = typename std::conditional<
               is_space_only<Model>::value, SRPDE,
@@ -78,9 +76,6 @@ template <typename Model_> class FPIRLS {
         // objective functional value at consecutive iterations
         double J_old = tolerance_ + 1, J_new = 0;
 	k_ = 0;
-
-    // Debug
-    std::cout << "max_iter_ in fpilrs = " << max_iter_ << std::endl ; 
 
         while (k_ < max_iter_ && std::abs(J_new - J_old) > tolerance_) {
             // std::cout << "fpirls iter " << k_ << std::endl; 

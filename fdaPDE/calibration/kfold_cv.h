@@ -60,6 +60,9 @@ class KCV : public CalibratorBase<KCV> {
                 train_mask.set(j);
             }
         }
+        // M 
+        std::cout << "size train = " << train_mask.count() << std::endl;   // non-zero elems
+        std::cout << "size test = " << test_mask.count() << std::endl; 
         return std::make_pair(train_mask, test_mask);
     }
    public:
@@ -80,6 +83,8 @@ class KCV : public CalibratorBase<KCV> {
 	}
         // cycle over all tuning parameters
         for (int j = 0; j < lambdas.rows(); ++j) {
+            std::cout << "----------------------" << std::endl; 
+
             for (int fold = 0; fold < K_; ++fold) {   // fixed a tuning parameter, cycle over all data splits
                 // compute train-test partition and evaluate CV score
                 TrainTestPartition partition_mask = split(model.data(), fold);
@@ -101,7 +106,6 @@ class KCV : public CalibratorBase<KCV> {
             avg_scores_[j] = avg_score;
             std_scores_[j] = std_score;
         }
-
         // store optimal lambda according to given metric F
         Eigen::Index opt_score;
         avg_scores_.minCoeff(&opt_score);

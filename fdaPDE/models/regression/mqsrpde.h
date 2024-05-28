@@ -134,7 +134,7 @@ template <typename RegularizationType_>
         template <
             typename U = RegularizationType,
             typename std::enable_if<std::is_same<U, SpaceOnly>::value, int>::type = 0>
-        MQSRPDE(const pde_ptr& pde, Sampling s, std::vector<double>& alphas = {0.1, 0.5, 0.9}) : Base(pde, s), alphas_(alphas) {
+        MQSRPDE(const Base::PDE& pde, Sampling s, std::vector<double>& alphas = {0.1, 0.5, 0.9}) : Base(pde, s), alphas_(alphas) {
             // auto i = std::adjacent_find(alphas.begin(), alphas.end(), std::greater_equal<int>());
             // if(i != alphas.end()){
             //     throw std::logic_error("Quantile orders are not in strictly ascending order");

@@ -1337,32 +1337,32 @@ using fdapde::testing::read_csv;
 TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
 
     // path test   
-    // std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_7"; 
-    std::string R_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/models/multiple_quantiles/Tests/Test_7_obs_ripetute"; 
+    std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_7_obs_ripetute"; 
+    // std::string R_path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/models/multiple_quantiles/Tests/Test_7_obs_ripetute"; 
 
     // define domain
-    MeshLoader<Mesh2D> domain("unit_square_test7");
+    MeshLoader<Triangulation<2, 2>> domain("unit_square_test7");
     const std::string lambda_selection = "gcv_smooth_eps1e-1"; 
     const std::string pde_type = "_lap";    // "_Ktrue" "_lap" "_casc"
-    const bool single_est = true;
-    const bool mult_est = false; 
+    const bool single_est = false;
+    const bool mult_est = true; 
 
-    const std::string max_iter_string = "_maxiter400";     // "_400" per il caso in cui max_iter di fpirls è stato alzato a 400 (si parla di stima singola)
+    const std::string max_iter_string = "";     // "_maxiter400" per il caso in cui max_iter di fpirls è stato alzato a 400 (si parla di stima singola)
                                                     // "" per il caso classico con max_iter=200
 
     // usare le obs ripetute?
-    bool bool_obs_rip = false;
+    bool bool_obs_rip = true;
 
     const std::vector<std::string> methods = {"mult"};    // "mult", "PP", "PP_new"
 
     // rhs 
-    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3, 1);
+    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3, 1);
 
     // lap 
     if(pde_type != "_lap")
         std::cout << "ERROR: YOU WANT TO USE K = I BUT YOU ARE USING SOMETHING ELSE" << std::endl; 
-    auto L = -laplacian<FEM>(); 
-    PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);  
+    auto L = -laplacian<FEM>();  
+    PDE<Triangulation<2, 2>, decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);  
 
     // // K = K_true
     // if(pde_type != "_Ktrue")
@@ -1372,14 +1372,14 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
     // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
     // define statistical model
-    // std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 
-    //                               0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};
+    std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.50, 0.75, 
+                                  0.90, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};
 
     // std::vector<double> alphas = {0.01, 0.02, 0.05, 0.10, 0.25, 0.75, 
     //                              0.91, 0.92, 0.93, 0.94, 0.96, 0.97, 0.98};
 
 
-    std::vector<double> alphas = {0.50, 0.90, 0.95, 0.99}; 
+    // std::vector<double> alphas = {0.50, 0.90, 0.95, 0.99}; 
 
     // Read locs
     DMatrix<double> loc ; 
@@ -1389,7 +1389,7 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
         loc = read_csv<double>(R_path + "/data" + "/locs.csv"); 
 
     // Simulations 
-    const unsigned int n_sim = 10; 
+    const unsigned int n_sim = 1; 
     // Single estimations
     if(single_est){
         std::cout << "-----------------------SINGLE running---------------" << std::endl;
@@ -1566,7 +1566,7 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
                 if(method == "mult"){
                     DMatrix<double> computedF = model.f();
                     const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(solution_path + "/f_all.csv");
+                    std::ofstream filef(solution_path + "/f_all_prova.csv");
                     if(filef.is_open()){
                         filef << computedF.format(CSVFormatf);
                         filef.close();
@@ -1574,7 +1574,7 @@ TEST(mqsrpde_test7, laplacian_nonparametric_samplingatlocations) {
 
                     DMatrix<double> computedFn = model.Psi_mult()*model.f();
                     const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(solution_path + "/fn_all.csv");
+                    std::ofstream filefn(solution_path + "/fn_all_prova.csv");
                     if(filefn.is_open()){
                         filefn << computedFn.format(CSVFormatfn);
                         filefn.close();
