@@ -26,7 +26,7 @@ using fdapde::core::fem_order;
 using fdapde::core::bilaplacian;
 using fdapde::core::laplacian;
 using fdapde::core::PDE;
-using fdapde::core::Mesh;
+using fdapde::core::Triangulation;
 using fdapde::core::SPLINE;
 using fdapde::core::spline_order;
 
@@ -91,7 +91,7 @@ using fdapde::testing::read_csv;
 //   MeshLoader<Mesh2D> domain("unit_square_coarse");
 //   // define regularizing PDE    
 //   auto L = -laplacian<FEM>();
-//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.rows(), 1);
+//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.rows(), 1);
 //   PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
   
 //   // define statistical model
@@ -184,7 +184,7 @@ using fdapde::testing::read_csv;
 
 //     // define regularizing PDE
 //     auto L = -laplacian<FEM>();
-//     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.rows(), 1);
+//     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.rows(), 1);
 //     PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
 //     unsigned int n_sim = 10; 
@@ -277,10 +277,10 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
     std::string path_mesh = "/M_7";
 
     double tf = fdapde::testing::pi;   // final time 
-    Mesh<1, 1> time_mesh(0, tf, M-1);     // t0, tf, #subintervals 
+    Triangulation<1, 1> time_mesh(0, tf, M-1);     // t0, tf, #subintervals 
 
     // define spatial domain and regularizing PDE
-    MeshLoader<Mesh2D> domain("c_shaped_adj");
+    MeshLoader<Triangulation<2,2>> domain("c_shaped_adj");
 
     // import locs from files
     DMatrix<double> space_locs = read_csv<double>(R_path + "/space_locs.csv");
@@ -288,12 +288,12 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 
     // define regularizing PDE in space 
     auto Ld = -laplacian<FEM>();
-    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
-    PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
+    PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
     // define regularizing PDE in time
     auto Lt = -bilaplacian<SPLINE>();
-    PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
+    PDE<Triangulation<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
     unsigned int n_sim = 10; 
 
@@ -431,10 +431,10 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 //     std::string path_mesh = "/M_7";
 
 //     double tf = fdapde::testing::pi;   // final time 
-//     Mesh<1, 1> time_mesh(0, tf, M-1);     // t0, tf, #subintervals 
+//     Triangulation<1, 1> time_mesh(0, tf, M-1);     // t0, tf, #subintervals 
 
 //     // define spatial domain and regularizing PDE
-//     MeshLoader<Mesh2D> domain("c_shaped_adj");
+//     MeshLoader<Triangulation<2,2>> domain("c_shaped_adj");
 
 //     // import locs from files
 //     DMatrix<double> space_locs = read_csv<double>(R_path + "/space_locs.csv");
@@ -446,12 +446,12 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 
 //     // define regularizing PDE in space 
 //     auto Ld = -laplacian<FEM>();
-//     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
-//     PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+//     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
+//     PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
 //     // define regularizing PDE in time
 //     auto Lt = -bilaplacian<SPLINE>();
-//     PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
+//     PDE<Triangulation<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
 //     unsigned int n_sim = 1; 
 
@@ -584,19 +584,19 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 //   // define temporal domain
 //   unsigned int M = 7; 
 //   double tf = fdapde::testing::pi;   
-//   Mesh<1, 1> time_mesh(0, tf, M-1);     // t0, tf, #subintervals 
+//   Triangulation<1, 1> time_mesh(0, tf, M-1);     // t0, tf, #subintervals 
 
 //   // define spatial domain and regularizing PDE
-//   MeshLoader<Mesh2D> domain("c_shaped_adj");
+//   MeshLoader<Triangulation<2,2>> domain("c_shaped_adj");
 
 //   // define regularizing PDE in space 
 //   auto Ld = -laplacian<FEM>();
-//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
-//   PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
+//   PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
 //   // define regularizing PDE in time
 //   auto Lt = -bilaplacian<SPLINE>();
-//   PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
+//   PDE<Triangulation<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
 //   // import locs from files
 //   DMatrix<double> space_locs = read_csv<double>("../data/models/qstrpde/2D_test1/locs.csv");
@@ -683,10 +683,10 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 //   for(double x = 0; x <= 2; x+=0.2, ++i) time_mesh[i] = x;
   
 //   // define spatial domain 
-//   MeshLoader<Mesh2D> domain("unit_square_coarse");
+//   MeshLoader<Triangulation<2,2>> domain("unit_square_coarse");
 //   // define regularizing PDE    
 //   auto L = -laplacian<FEM>();
-//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.rows(), 1);
+//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.rows(), 1);
 //   PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
   
 //   // define statistical model
@@ -794,10 +794,10 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 //     time_mesh[i] = (fdapde::testing::pi/4)*i;
 
 //   // define domain and regularizing PDE
-//   MeshLoader<Mesh2D> domain("c_shaped");
+//   MeshLoader<Triangulation<2,2>> domain("c_shaped");
 //   // define regularizing PDE
 //   auto L = -laplacian<FEM>();
-//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3, 1);
+//   DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3, 1);
 //   PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 //   // define model
 //   double lambda_D ;
@@ -904,7 +904,7 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 //   for(std::size_t i = 0; i < 10; ++i) time_mesh[i] = 0.4*i;
 
 //   // define domain and regularizing PDE
-//   MeshLoader<Mesh2D<>> domain("quasi_circle");
+//   MeshLoader<Triangulation<2,2>> domain("quasi_circle");
 //   // load PDE coefficients data
 //   CSVReader<double> reader{};
 //   CSVFile<double> diffFile; // diffusion tensor
@@ -1024,7 +1024,7 @@ TEST(sqrpde_time_test, laplacian_nonparametric_samplingatlocations_timelocations
 //   for(std::size_t i = 0; i < 5; ++i) time_mesh[i] = 0.4*i;
 
 // //   // define domain and regularizing PDE
-// //   MeshLoader<Mesh2D<>> domain("unit_square_coarse");
+// //   MeshLoader<Triangulation<2,2>> domain("unit_square_coarse");
   
 // //   // parabolic PDE
 // //   auto L = dT() + Laplacian();

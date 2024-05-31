@@ -20,7 +20,6 @@
 #include <fdaPDE/linear_algebra.h>
 #include <fdaPDE/pde.h>
 #include <fdaPDE/utils.h>
-// using fdapde::core::PDEBase;
 
 #include <memory>
 #include <type_traits>

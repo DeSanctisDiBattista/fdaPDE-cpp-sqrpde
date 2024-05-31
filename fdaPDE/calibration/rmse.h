@@ -55,8 +55,6 @@ class RMSE {
         double rmse = 0;
         std::size_t n = 0;   // cardinality of test set
 
-        // M 
-        std::cout << "ATT: RMSE computation changed to pinball loss !!" << std::endl; 
         for (std::size_t i = 0, sz = rmse_mask.size(); i < sz; ++i) {
             if (rmse_mask[i]) {                                    // not a missing value
                 double hat_y = model_.Psi().row(i) * model_.f();   // non-parametric field evaluation at i-th location
@@ -73,7 +71,7 @@ class RMSE {
 
         // return std::sqrt(rmse / n);   // \sqrt{\frac{norm(y - \hat y)^2/}{n}}
 
-        return rmse / n;   // M ATT: è la pinball divisa per n, non rmse
+        return rmse / n;   // M ATT: è la pinball, non rmse
    
     }
 

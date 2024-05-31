@@ -83,15 +83,18 @@ class GCV {
         double trS = cache_[lambda];
 
         if(gacv_){
-            std::cout << "GACV score computation..." << std::endl; 
+            //std::cout << "GACV score computation..." << std::endl; 
             trS *= gcv_correction_factor;      // M   gcv correction (Nortier phd 2021)
             trace_debug.push_back(trS); 
         }
         if(gacv_star_){
-            std::cout << "GACV* score computation..." << std::endl; 
+            //std::cout << "GACV* score computation..." << std::endl; 
             trS *= star_gcv_correction_factor;      // M   gcv correction (Nortier phd 2021)
             trace_debug.push_back(trS); 
         } 
+        if(!gacv_ && !gacv_star_){
+            //std::cout << "GCV score computation..." << std::endl; 
+        }
 
         double q = model_.q();            // number of covariates
         std::size_t n = model_.n_obs();   // number of observations
@@ -164,6 +167,7 @@ class GCV {
 
     // M 
     void set_correction(bool gacv, bool gacv_star, double phi) {
+        std::cout << "in correction gcv" << std::endl; 
         gacv_ = gacv; 
         gacv_star_ = gacv_star; 
         phi_ = phi;
