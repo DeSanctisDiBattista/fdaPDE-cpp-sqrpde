@@ -9,7 +9,7 @@ using fdapde::core::bilaplacian;
 using fdapde::core::fem_order;
 using fdapde::core::FEM;
 using fdapde::core::Grid; 
-using fdapde::core::Mesh; 
+using fdapde::core::Triangulation;
 using fdapde::core::SPLINE;
 using fdapde::core::spline_order;
 using fdapde::core::PDE;
@@ -51,7 +51,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
     std::size_t seed = 438172;
     unsigned int MC_run = 100; 
     const std::string num_months = "one_month";   // "one_month" "two_months"   
-    const std::string model_type = "nonparametric";  // "nonparametric" "parametric"
+    const std::string model_type = "parametric";  // "nonparametric" "parametric"
     const std::string pde_type = "";        // "transport"
     const std::string u_string = "1";               // value of u in case of transport
     const std::string covariate_type = "dens_log.elev.original";
@@ -63,15 +63,15 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
     std::string est_type = "quantile";    // mean quantile
     std::vector<double> alphas = {0.99}; //, 0.9, 0.95}; 
 
-    // // Marco 
-    // std::string path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia_restricted"; 
-    // std::string path_data = path + "/data/" + num_months + "/" + pollutant;  
-    // std::string solutions_path; 
+    // Marco 
+    std::string path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia"; 
+    std::string path_data = path + "/data/" + num_months + "/" + pollutant;  
+    std::string solutions_path; 
 
-    // Ilenia 
-    std::string path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia"; 
-    std::string path_data = path + "/data/" + num_months + "/" + pollutant; 
-    std::string solutions_path;
+    // // Ilenia 
+    // std::string path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia"; 
+    // std::string path_data = path + "/data/" + num_months + "/" + pollutant; 
+    // std::string solutions_path;
 
     // for(std::string covariate_type : covariate_type_vec){
 
@@ -102,7 +102,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
         }
     }
 
-    std::cout << "Sol path = " << solutions_path << std::endl ; 
+    std::cout << "Sol path = " << solutions_path << std::endl; 
 
     // lambdas sequence 
     std::vector<DVector<double>> lambdas_d_t; std::vector<double> lambdas_d; std::vector<double> lambdas_t;
@@ -142,6 +142,16 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
                 lambdas_d_t.push_back(SVector<2>(lambdas_d[i], lambdas_t[j]));
     }
 
+    // define lambda sequence as matrix 
+    DMatrix<double> lambdas_mat;
+    lambdas_mat.resize(lambdas_d_t.size(), 2); 
+    for(auto i = 0; i < lambdas_mat.rows(); ++i){
+        lambdas_mat(i,0) = lambdas_d_t[0][i]; 
+        lambdas_mat(i,1) = lambdas_d_t[1][i]; 
+    }
+
+
+
     if(return_smoothing && lambdas_d.size() > 1){
         std::cout << "ERROR: you want S, but you are providing more lambdas" << std::endl; 
     } 
@@ -163,7 +173,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
 
         // 90% 
         {
-            for(double xs = -8.5; xs <= -6.0; xs += 0.1)  // -6 
+            for(double xs = -8.5; xs <= -5.5; xs += 0.1)  // -6 
                 lambdas90_d.push_back(std::pow(10,xs));   
 
             for(double xt = -3.0; xt <= -1.0; xt += 2.0) // -1
@@ -202,7 +212,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
 
         // 99% 
         {
-            for(double xs = -8.0; xs <= -6.5; xs += 0.1)    // -8.0; xs <= -5.9; xs += 0.1)  
+            for(double xs = -8.5; xs <= -6.0; xs += 0.1)    // -8.0; xs <= -5.9; xs += 0.1)  
                 lambdas99_d.push_back(std::pow(10,xs));
 
             for(double xt = -3.0; xt <= -2.0; xt += 2.0)
@@ -213,6 +223,43 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
                     lambdas99_d_t.push_back(SVector<2>(lambdas99_d[i], lambdas99_t[j]));
         }
 
+    }
+
+    // define lambda sequence as matrix 
+    // 10%
+    DMatrix<double> lambdas10_mat;
+    lambdas10_mat.resize(lambdas10_d_t.size(), 2); 
+    for(auto i = 0; i < lambdas10_mat.rows(); ++i){
+        lambdas10_mat(i,0) = lambdas10_d_t[i][0]; ;
+        lambdas10_mat(i,1) = lambdas10_d_t[i][1]; 
+    }
+    // 50%
+    DMatrix<double> lambdas50_mat;
+    lambdas50_mat.resize(lambdas50_d_t.size(), 2); 
+    for(auto i = 0; i < lambdas50_mat.rows(); ++i){
+        lambdas50_mat(i,0) = lambdas50_d_t[i][0]; 
+        lambdas50_mat(i,1) = lambdas50_d_t[i][1]; 
+    }
+    // 90%
+    DMatrix<double> lambdas90_mat;
+    lambdas90_mat.resize(lambdas90_d_t.size(), 2); 
+    for(auto i = 0; i < lambdas90_mat.rows(); ++i){
+        lambdas90_mat(i,0) = lambdas90_d_t[i][0]; 
+        lambdas90_mat(i,1) = lambdas90_d_t[i][1]; 
+    }
+    // 95%
+    DMatrix<double> lambdas95_mat;
+    lambdas95_mat.resize(lambdas95_d_t.size(), 2); 
+    for(auto i = 0; i < lambdas95_mat.rows(); ++i){
+        lambdas95_mat(i,0) = lambdas95_d_t[i][0]; 
+        lambdas95_mat(i,1) = lambdas95_d_t[i][1]; 
+    }
+    // 99%
+    DMatrix<double> lambdas99_mat;
+    lambdas99_mat.resize(lambdas99_d_t.size(), 2); 
+    for(auto i = 0; i < lambdas99_mat.rows(); ++i){
+        lambdas99_mat(i,0) = lambdas99_d_t[i][0]; 
+        lambdas99_mat(i,1) = lambdas99_d_t[i][1]; 
     }
 
     // define temporal domain
@@ -226,9 +273,9 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
         tf = 22.0; 
     }
     std::string M_string = std::to_string(M);
-    Mesh<1, 1> time_mesh(0, tf, M-1);
+    Triangulation<1, 1> time_mesh(0, tf, M-1);
     // define spatial domain and regularizing PDE
-    MeshLoader<Mesh2D> domain("mesh_lombardia_" + mesh_type);
+    MeshLoader<Triangulation<2, 2>> domain("mesh_lombardia_" + mesh_type);
 
     // import data and locs from files
     DMatrix<double> y; DMatrix<double> space_locs; DMatrix<double> time_locs; DMatrix<double> X;  
@@ -257,8 +304,8 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
         std::cout << "ATT You want to run a model with transport but you are using the Laplacian"; 
 
     auto Ld = -laplacian<FEM>();
-    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
-    PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
+    PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
     // // Laplacian + transport 
     // if(pde_type == "")
@@ -268,15 +315,15 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
     
     // DMatrix<double> u = read_csv<double>(path_data + "/transport/u_" + u_string + "_opt.csv");
   
-    // //DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
+    // //DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
 
     // DiscretizedVectorField<2, 2> b(b_data);
     // auto Ld = -laplacian<FEM>() + advection<FEM>(b);
-    // PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+    // PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
     // define regularizing PDE in time
     auto Lt = -bilaplacian<SPLINE>();
-    PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
+    PDE<Triangulation<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
     std::cout << "-----------------------------GCV STARTS------------------------" << std::endl; 
 
@@ -301,7 +348,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
            
         // optimize GCV
         Grid<fdapde::Dynamic> opt;
-        opt.optimize(GCV, lambdas_d_t);
+        opt.optimize(GCV, lambdas_mat);
         SVector<2> best_lambda = opt.optimum();
 
         if(!return_smoothing){
@@ -412,34 +459,41 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
             // // exact
             // auto GCV = model.gcv<ExactEDF>();
 
+            DMatrix<double> lambdas_mat_quantile; 
+
             if(alpha_string == "10"){
                 lambdas_d = lambdas10_d; 
                 lambdas_t = lambdas10_t;
                 lambdas_d_t = lambdas10_d_t;
+                lambdas_mat_quantile = lambdas10_mat; 
             }
 
             if(alpha_string == "50"){
                 lambdas_d = lambdas50_d; 
                 lambdas_t = lambdas50_t;
                 lambdas_d_t = lambdas50_d_t;
+                lambdas_mat_quantile = lambdas50_mat;
             }
                  
             if(alpha_string == "90"){
                 lambdas_d = lambdas90_d; 
                 lambdas_t = lambdas90_t;
                 lambdas_d_t = lambdas90_d_t;
+                lambdas_mat_quantile = lambdas90_mat;
             }
                  
             if(alpha_string == "95"){
                 lambdas_d = lambdas95_d; 
                 lambdas_t = lambdas95_t;
                 lambdas_d_t = lambdas95_d_t;
+                lambdas_mat_quantile = lambdas95_mat;
             }
 
             if(alpha_string == "99"){
                 lambdas_d = lambdas99_d; 
                 lambdas_t = lambdas99_t;
                 lambdas_d_t = lambdas99_d_t;
+                lambdas_mat_quantile = lambdas99_mat;
             }
 
 
@@ -447,7 +501,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
             Grid<fdapde::Dynamic> opt;
 
             std::cout << "Start optimize" << std::endl ; 
-            opt.optimize(GCV, lambdas_d_t);
+            opt.optimize(GCV, lambdas_mat_quantile);
             std::cout << "End optimize" << std::endl ; 
             SVector<2> best_lambda = opt.optimum();
 
@@ -518,7 +572,7 @@ TEST(case_study_run, laplacian_nonparametric_samplingatlocations_timelocations_s
 
     const std::string num_months = "one_month";   // "one_month" "two_months"
     const std::string model_type = "parametric";  // "nonparametric" "parametric"
-    const std::string pde_type = "transport";        // "transport"
+    const std::string pde_type = "";        // "transport"
     const std::string u_string = "1";               // value of u in case of transport
     const std::string covariate_type = "dens_log.elev.original";
     bool force_lambda = false ;   // ATT: cambia path di salvataggio 
@@ -526,15 +580,15 @@ TEST(case_study_run, laplacian_nonparametric_samplingatlocations_timelocations_s
     const std::string mesh_type = "convex_hull";  // "square" "esagoni" "convex_hull"
     const std::string pollutant = "NO2"; 
 
-    // // Marco 
-    // std::string path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia"; 
-    // std::string path_data = path + "/data/" + num_months + "/" + pollutant; 
-    // std::string solutions_path; 
-
-    // Ilenia 
-    std::string path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia"; 
+    // Marco 
+    std::string path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/case_study/ARPA/Lombardia"; 
     std::string path_data = path + "/data/" + num_months + "/" + pollutant; 
-    std::string solutions_path;
+    std::string solutions_path; 
+
+    // // Ilenia 
+    // std::string path = "/mnt/c/Users/ileni/OneDrive - Politecnico di Milano/Thesis_shared/case_study/ARPA/Lombardia"; 
+    // std::string path_data = path + "/data/" + num_months + "/" + pollutant; 
+    // std::string solutions_path;
 
     // for(std::string covariate_type : covariate_type_vec){
 
@@ -578,9 +632,9 @@ TEST(case_study_run, laplacian_nonparametric_samplingatlocations_timelocations_s
         tf = 22.0; 
     }
     std::string M_string = std::to_string(M);
-    Mesh<1, 1> time_mesh(0, tf, M-1);
+    Triangulation<1, 1> time_mesh(0, tf, M-1);
     // define spatial domain and regularizing PDE
-    MeshLoader<Mesh2D> domain("mesh_lombardia_" + mesh_type);
+    MeshLoader<Triangulation<2, 2>> domain("mesh_lombardia_" + mesh_type);
 
     // import data and locs from files
     DMatrix<double> y; DMatrix<double> space_locs; DMatrix<double> time_locs; DMatrix<double> X; 
@@ -604,31 +658,31 @@ TEST(case_study_run, laplacian_nonparametric_samplingatlocations_timelocations_s
    
     // define regularizing PDE in space 
 
-    // // Laplacian
-    // if(pde_type == "transport")
-    //     std::cout << "ATT You want to run a model with transport but you are using the Laplacian"; 
+    // Laplacian
+    if(pde_type == "transport")
+        std::cout << "ATT You want to run a model with transport but you are using the Laplacian"; 
 
-    // auto Ld = -laplacian<FEM>();
-    // DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
-    // PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+    auto Ld = -laplacian<FEM>();
+    DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
+    PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
-    // Laplacian + transport 
-    if(pde_type == "")
-        std::cout << "ATT You want to run a model with only the Laplacian but you are using a PDE with transport"; 
+    // // Laplacian + transport 
+    // if(pde_type == "")
+    //     std::cout << "ATT You want to run a model with only the Laplacian but you are using a PDE with transport"; 
 
-    DMatrix<double, Eigen::RowMajor> b_data  = read_csv<double>(path_data + "/transport/b_" + u_string + "_opt.csv");  
+    // DMatrix<double, Eigen::RowMajor> b_data  = read_csv<double>(path_data + "/transport/b_" + u_string + "_opt.csv");  
     
-    DMatrix<double> u = read_csv<double>(path_data + "/transport/u_" + u_string + "_opt.csv");
+    // DMatrix<double> u = read_csv<double>(path_data + "/transport/u_" + u_string + "_opt.csv");
   
-    //DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_elements() * 3 * time_mesh.n_nodes(), 1);
+    //DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3 * time_mesh.n_nodes(), 1);
 
-    DiscretizedVectorField<2, 2> b(b_data);
-    auto Ld = -laplacian<FEM>() + advection<FEM>(b);
-    PDE<Mesh<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
+    // DiscretizedVectorField<2, 2> b(b_data);
+    // auto Ld = -laplacian<FEM>() + advection<FEM>(b);
+    // PDE<Triangulation<2, 2>, decltype(Ld), DMatrix<double>, FEM, fem_order<1>> space_penalty(domain.mesh, Ld, u);
 
     // define regularizing PDE in time
     auto Lt = -bilaplacian<SPLINE>();
-    PDE<Mesh<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
+    PDE<Triangulation<1, 1>, decltype(Lt), DMatrix<double>, SPLINE, spline_order<3>> time_penalty(time_mesh, Lt);
 
 
 
