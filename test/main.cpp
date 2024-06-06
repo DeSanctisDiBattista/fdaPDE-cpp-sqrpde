@@ -28,10 +28,6 @@
 // #include "src/fpls_test.cpp"
 // #include "src/centering_test.cpp"
 
-// Case study 
-// #include "src/case_study_QSTRPDE.cpp"
-// #include "src/case_study_MQSRPDE.cpp"
-
 
 int main(int argc, char **argv){
   // start testing
