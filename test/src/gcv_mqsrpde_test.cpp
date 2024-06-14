@@ -1027,8 +1027,10 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     bool quantile_estimation = !mean_estimation;  
 
     bool corr = true; 
+    std::string cor_str = "_7";   // ""  "_2" "_3" "_4" "_5" "_6" "_7"
     // path test  
     std::string R_path; 
+    std::string simulations_string = "simulations"; 
     if(!corr){
         if(mean_estimation){
             R_path = "";
@@ -1038,15 +1040,19 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
          
     } else{
         if(mean_estimation){
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_cor";
+            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_cor" + cor_str;
         } else{
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute_cor";
+            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute_cor" + cor_str;
         }
+    }
+    if(cor_str == "_7"){
+        R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_cor" + cor_str;
+        simulations_string = "sims"; 
     }
        
     // data parameters
-    std::vector<unsigned int> max_reps = {10, 20, 30, 40, 50};   // max number of repetitions 
-    std::vector<std::string> data_types = {"data"}; 
+    std::vector<unsigned int> max_reps = {10, 30, 50};   // max number of repetitions 
+    std::vector<std::string> data_types = {"data"};    
     for(auto max_rep : max_reps){
         data_types.push_back("data_rip_" + std::to_string(max_rep));
     }
@@ -1057,6 +1063,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // quantile parameters 
     std::vector<double> alphas = {0.50};
     const std::string gcv_refinement = "fine";    // "lasco" "fine"
+    const std::string gcv_summary = "_summary_mean";    // "mean"
     double step_quantile; 
     if(gcv_refinement == "lasco"){
         step_quantile = 0.5;
@@ -1071,7 +1078,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     bool compute_rmse = false;
     bool compute_gcv = true;    
 
-    const unsigned int n_sim = 10;
+    const unsigned int n_sim = 15;
 
     // define domain
     std::string domain_str; 
@@ -1087,11 +1094,11 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     for(double x = -7.5; x <= -2.0; x += 0.05) lambdas_mean.push_back(std::pow(10, x));
 
     std::vector<double> lambdas_quantile;
-    for(double x = -7.0; x <= -3.5; x += step_quantile) lambdas_quantile.push_back(std::pow(10, x));
+    for(double x = -9.5; x <= -1.5; x += step_quantile) lambdas_quantile.push_back(std::pow(10, x));
     
     bool force_lambdas_longer = false; 
     std::vector<double> lambdas_longer; 
-    for(double x = -3.0; x <= -1.0; x += 0.05) lambdas_longer.push_back(std::pow(10, x));
+    for(double x = -3.0; x <= -1.0; x += step_quantile) lambdas_longer.push_back(std::pow(10, x));
 
     double best_lambda; 
 
@@ -1102,10 +1109,17 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
         std::cout << std::endl;
         std::cout << "--------------------Simulation #" << std::to_string(sim) << "-------------" << std::endl; 
 
-        for(std::string data_type : data_types){
+        for(std::string data_type : data_types){  
 
             std::cout << std::endl;    
             std::cout << "------Data type = " << data_type << std::endl; 
+
+            std::string gcv_summary_tmp; 
+            if(data_type == "data"){
+                gcv_summary_tmp = ""; 
+            } else{
+                gcv_summary_tmp = gcv_summary; 
+            }
 
             // Read locations and data 
             std::string loc_str; 
@@ -1119,7 +1133,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
             DMatrix<double> loc = read_csv<double>(data_path + loc_str); 
             std::cout << "locs size = " << loc.rows() << std::endl; 
 
-            DMatrix<double> y = read_csv<double>(data_path + "/simulations/sim_" + std::to_string(sim) + "/y.csv");
+            DMatrix<double> y = read_csv<double>(data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/y.csv");
             BlockFrame<double, int> df;
             df.insert(OBSERVATIONS_BLK, y);
 
@@ -1142,7 +1156,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
                         std::cout << "------------------gcv computation-----------------" << std::endl;
 
-                        std::string gcv_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+                        std::string gcv_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
                             
                         SRPDE model_cv(problem, Sampling::pointwise);
                         model_cv.set_spatial_locations(loc);
@@ -1194,7 +1208,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                 if(compute_rmse){
                     std::cout << "------------------RMSE computation-----" << std::endl; 
 
-                    std::string rmse_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                    std::string rmse_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                     // RMSE
                     DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
 
@@ -1269,7 +1283,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
                             const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
 
-                            std::string gcv_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                            std::string gcv_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
                                 
                             QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
                             model_cv.set_spatial_locations(loc);
@@ -1288,13 +1302,13 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             best_lambda = opt.optimum()(0,0);
 
                             // Save GCV score
-                            std::ofstream fileGCV_scores(gcv_path + "/score_" + gcv_refinement + ".csv");
+                            std::ofstream fileGCV_scores(gcv_path + "/score_" + gcv_refinement + gcv_summary_tmp + ".csv");
                             for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
                                 fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
                             fileGCV_scores.close();
 
                             // Save GCV edf
-                            std::ofstream fileGCV_edfs(gcv_path + "/edf_" + gcv_refinement + ".csv");
+                            std::ofstream fileGCV_edfs(gcv_path + "/edf_" + gcv_refinement + gcv_summary_tmp + ".csv");
                             for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
                                 fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
                             fileGCV_edfs.close();
@@ -1304,25 +1318,25 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             // Save lambda sequence 
                             if(force_lambdas_longer){
                                 std::cout << "forcing lambda sequence to be longer" << std::endl;
-                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_ext.csv");
+                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_ext" + gcv_summary + ".csv");
                                 for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
                                     fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
                                 fileLambdaS.close();
 
                                 // Save lambda GCVopt for all alphas
-                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_ext_" + gcv_refinement + ".csv");
+                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_ext_" + gcv_refinement + gcv_summary + ".csv");
                                 if(fileLambdaoptS.is_open()){
                                     fileLambdaoptS << std::setprecision(16) << best_lambda;
                                     fileLambdaoptS.close();
                                 }
                             } else{
-                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_" + gcv_refinement + ".csv");
+                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_" + gcv_refinement + gcv_summary_tmp + ".csv");
                                 for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
                                     fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
                                 fileLambdaS.close();
 
                                 // Save lambda GCVopt for all alphas
-                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_" + gcv_refinement + ".csv");
+                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_" + gcv_refinement + gcv_summary_tmp + ".csv");
                                 if(fileLambdaoptS.is_open()){
                                     fileLambdaoptS << std::setprecision(16) << best_lambda;
                                     fileLambdaoptS.close();
@@ -1336,7 +1350,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                     if(compute_rmse){
                         std::cout << "-----RMSE computation-----" << std::endl; 
 
-                        std::string rmse_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                        std::string rmse_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
                         // RMSE
                         DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
 

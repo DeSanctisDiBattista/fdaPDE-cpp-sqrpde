@@ -54,7 +54,7 @@ TEST(case_study_gcv, laplacian_nonparametric_samplingatlocations_timelocations_s
     const std::string model_type = "parametric";  // "nonparametric" "parametric"
     const std::string pde_type = "";        // "transport"
     const std::string u_string = "1";               // value of u in case of transport
-    const std::string covariate_type = "dens_log.elev.original";
+    const std::string covariate_type = "dens.new_log.elev.original";
     // const std::vector<std::string> covariate_type_vec = {"dens"};
     const std::string mesh_type = "convex_hull";  // "square" "esagoni" "convex_hull"
     const std::string pollutant = "NO2";
@@ -574,7 +574,7 @@ TEST(case_study_run, laplacian_nonparametric_samplingatlocations_timelocations_s
     const std::string model_type = "parametric";  // "nonparametric" "parametric"
     const std::string pde_type = "";        // "transport"
     const std::string u_string = "1";               // value of u in case of transport
-    const std::string covariate_type = "dens_log.elev.original";
+    const std::string covariate_type = "dens.new_log.elev.original";
     bool force_lambda = false ;   // ATT: cambia path di salvataggio 
     // const std::vector<std::string> covariate_type_vec = {"rain_wind_radiation_dens", "wind_radiation_dens", "radiation_dens", "dens"};
     const std::string mesh_type = "convex_hull";  // "square" "esagoni" "convex_hull"

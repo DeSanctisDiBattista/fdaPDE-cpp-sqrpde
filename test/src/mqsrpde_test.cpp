@@ -894,8 +894,10 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     bool quantile_estimation = !mean_estimation;  
 
     bool corr = true; 
+    std::string cor_str = "_7";   // "" "_2" "_3" "_4" "_5" "_6" "_7"
     // path test  
     std::string R_path; 
+    std::string simulations_string = "simulations"
     if(!corr){
         if(mean_estimation){
             R_path = "";
@@ -905,13 +907,17 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
          
     } else{
         if(mean_estimation){
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_cor";
+            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_cor" + cor_str;
         } else{
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute_cor";
+            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute_cor" + cor_str;
         }
     }
+    if(cor_str == "_7"){
+        R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_cor" + cor_str;
+        simulations_string = "sims"; 
+    }
 
-    std::vector<unsigned int> max_reps = {10, 20, 30, 40, 50};   // max number of repetitions 
+    std::vector<unsigned int> max_reps = {10, 30, 50};   // max number of repetitions 
     std::vector<std::string> data_types = {"data"}; 
     for(auto max_rep : max_reps){
         data_types.push_back("data_rip_" + std::to_string(max_rep));
@@ -923,6 +929,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     bool single = true; 
     bool multiple = false;  
     const std::string gcv_refinement = "fine";    // "lasco" "fine"
+    const std::string gcv_summary = "_summary_mean";    // "mean"
 
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
@@ -931,7 +938,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     bool compute_rmse = false;
     bool compute_gcv = true;    
 
-    const unsigned int n_sim = 10;
+    const unsigned int n_sim = 15;
 
     // define domain
     std::string domain_str; 
@@ -955,9 +962,17 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
             } else{
                 loc_str = "/locs.csv"; 
             }
+
+            std::string gcv_summary_tmp; 
+            if(data_type == "data"){
+                gcv_summary_tmp = ""; 
+            } else{
+                gcv_summary_tmp = gcv_summary; 
+            }
+
             std::string data_path = R_path + "/" + data_type; 
             DMatrix<double> loc = read_csv<double>(data_path + loc_str); 
-            DMatrix<double> y = read_csv<double>(data_path + "/simulations/sim_" + std::to_string(sim) + "/y.csv");
+            DMatrix<double> y = read_csv<double>(data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/y.csv");
             BlockFrame<double, int> df;
             df.insert(OBSERVATIONS_BLK, y);
 
@@ -965,8 +980,8 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
                 std::cout << "------------------MEAN REGRESSION-----------------" << std::endl;
 
-                std::string gcv_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
-                std::string rmse_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                std::string gcv_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+                std::string rmse_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                 if(compute_gcv){
                     std::cout << "------------------gcv selection-----------------" << std::endl;
                     // Read lambda 
@@ -1062,10 +1077,10 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                 std::string alpha_string = std::to_string(alpha_int); 
 
                                 std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                std::string gcv_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string;
+                                std::string gcv_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string;
                                 // Read lambda 
                                 double best_lambda;
-                                std::ifstream fileLambda(gcv_path + "/lambda_s_opt_" + gcv_refinement + ".csv");
+                                std::ifstream fileLambda(gcv_path + "/lambda_s_opt_" + gcv_refinement + gcv_summary_tmp + ".csv");
                                 if(fileLambda.is_open()){
                                     fileLambda >> best_lambda; 
                                     fileLambda.close();
@@ -1084,7 +1099,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                 // save
                                 DMatrix<double> computedF = model_quantile.f();
                                 const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                std::ofstream filef(gcv_path + "/f.csv");
+                                std::ofstream filef(gcv_path + "/f" + gcv_summary_tmp + ".csv");
                                 if(filef.is_open()){
                                     filef << computedF.format(CSVFormatf);
                                     filef.close();
@@ -1092,7 +1107,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
                                 DMatrix<double> computedFn = model_quantile.Psi()*model_quantile.f();
                                 const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                std::ofstream filefn(gcv_path + "/fn.csv");
+                                std::ofstream filefn(gcv_path + "/fn" + gcv_summary_tmp + ".csv");
                                 if(filefn.is_open()){
                                     filefn << computedFn.format(CSVFormatfn);
                                     filefn.close();
@@ -1102,8 +1117,8 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                         if(multiple){
 
                             MQSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alphas);
-                            std::string solution_mult_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/mult_est" + diffusion_type;
-                            std::string lambda_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type;
+                            std::string solution_mult_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/mult_est" + diffusion_type;
+                            std::string lambda_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type;
 
                             // use optimal lambda to avoid possible numerical issues
                             DMatrix<double> lambdas;
@@ -1111,7 +1126,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                             lambdas_temp.resize(alphas.size());
                             for(std::size_t idx = 0; idx < alphas.size(); ++idx){
                                 unsigned int alpha_int = alphas[idx]*100;  
-                                std::ifstream fileLambdas(lambda_path  + "/alpha_" + std::to_string(alpha_int) + "/lambda_s_opt_" + gcv_refinement + ".csv");
+                                std::ifstream fileLambdas(lambda_path  + "/alpha_" + std::to_string(alpha_int) + "/lambda_s_opt_" + gcv_refinement + gcv_summary_tmp + ".csv");
                                 if(fileLambdas.is_open()){
                                     fileLambdas >> lambdas_temp(idx); 
                                     fileLambdas.close();
@@ -1131,7 +1146,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                             // Save solution
                             DMatrix<double> computedF = model_quantile.f();
                             const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                            std::ofstream filef(solution_mult_path + "/f_all.csv");
+                            std::ofstream filef(solution_mult_path + "/f_all" + gcv_summary_tmp + ".csv");
                             if(filef.is_open()){
                                 filef << computedF.format(CSVFormatf);
                                 filef.close();
@@ -1139,7 +1154,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
                             DMatrix<double> computedFn = model_quantile.Psi_mult()*model_quantile.f();
                             const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                            std::ofstream filefn(solution_mult_path + "/fn_all.csv");
+                            std::ofstream filefn(solution_mult_path + "/fn_all" + gcv_summary_tmp + ".csv");
                             if(filefn.is_open()){
                                 filefn << computedFn.format(CSVFormatfn);
                                 filefn.close();
@@ -1160,7 +1175,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                             std::string alpha_string = std::to_string(alpha_int); 
 
                             std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                            std::string rmse_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string;
+                            std::string rmse_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string;
                             // Read lambda 
                             double best_lambda;
                             std::ifstream fileLambda(rmse_path + "/lambda_s_opt_" + gcv_refinement + ".csv");
@@ -1201,8 +1216,8 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                     if(multiple){
 
                         MQSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alphas);
-                        std::string solution_mult_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/RMSE/mult_est" + diffusion_type;
-                        std::string lambda_path = data_path + "/simulations/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type;
+                        std::string solution_mult_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/mult_est" + diffusion_type;
+                        std::string lambda_path = data_path + "/" simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type;
 
                         // use optimal lambda to avoid possible numerical issues
                         DMatrix<double> lambdas;

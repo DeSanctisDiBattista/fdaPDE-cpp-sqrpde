@@ -56,7 +56,6 @@ template <typename RegularizationType_>
         bool force_entrance = false; 
 
         // algorithm's parameters 
-        // (il setting per l'applicazione tesi è con gamma0=5 e max_iter = 200, li ho cambiati per la sim con obs ripetute)
         double gamma0_ = 5.;                   // crossing penalty   
         double eps_ = 1e-6;                    // crossing tolerance 
         double C_ = 1.5;                       // crossing penalty factor
@@ -254,6 +253,7 @@ template <typename RegularizationType_>
         // setters
         void set_preprocess_option(bool preprocess){ do_process = preprocess;}; 
         void set_forcing_option(bool force){ force_entrance = force;}; 
+        void set_max_iter(unsigned int max_it) {max_iter_ = max_it; };
 
         virtual ~MQSRPDE() = default;
     };

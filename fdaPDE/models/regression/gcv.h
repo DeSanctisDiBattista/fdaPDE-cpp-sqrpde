@@ -74,6 +74,7 @@ class GCV {
     // GCV(\lambda) = n/(edf^2)*norm(y - \hat y)^2
     ScalarField<fdapde::Dynamic, double (This::*)(const VectorType&)> gcv_;
     double gcv_impl(const VectorType& lambda) {
+
         // fit the model given current lambda
         model_.set_lambda(lambda);
         model_.init();

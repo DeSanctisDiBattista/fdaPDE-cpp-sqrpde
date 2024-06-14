@@ -152,11 +152,54 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     // GCV support
     double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const {
 
-        double result = 0;
-        for (int i = 0; i < n_locs(); ++i) {
-            if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
+        if(gcv_oss_rip){
+            std::cout << "Running GCV per obs ripetute (I approccio)" << std::endl;
+            double result = 0;
+            unsigned int n_unique_obs = 0;   // number of unique locations 
+            bool new_loc;                    // flag for new location 
+            for(std::size_t i = 0; i < n_locs(); ++i) {
+
+                if(i==0){
+                    new_loc = true; 
+                } else{
+                    new_loc = !( almost_equal(Base::locs().coeff(i,0), Base::locs().coeff(i-1,0)) && almost_equal(Base::locs().coeff(i,1), Base::locs().coeff(i-1,1)) ); 
+                }
+
+
+                if(!Base::masked_obs()[i] && new_loc){
+                    
+                    std::size_t j=0;   // size of the i_th block of locations 
+                    double summary_data = 0.;    // statistical summary of the observations in location i 
+                    // Compute a summary of the block
+                    while(almost_equal(Base::locs().coeff(i,0), Base::locs().coeff(i+j,0)) && almost_equal(Base::locs().coeff(i,1), Base::locs().coeff(i+j,1)) ){    // nb: it always enter the first time 
+                        summary_data += op2.coeff(i+j, 0);   // nb: op2 è il dato y 
+                        j++; 
+                    }
+                    summary_data = summary_data / j;   // divide by block size to have the mean of the observations in the block i  
+                        
+                    result += pinball_loss( summary_data - op1.coeff(i, 0), std::pow(10, eps_));
+                    n_unique_obs++; 
+                }
+            }
+            std::cout << "iterazioni in norm " << n_unique_obs << std::endl; 
+            // Adjustment of result to account for repeated data (nb: in questo modo i calcoli in gcv.h sono invariati)
+            result *= n_obs() / n_unique_obs; 
+            return std::pow(result, 2) / n_obs();
+        } else{
+
+            double result = 0;
+            for (int i = 0; i < n_locs(); ++i) {
+                if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
+            }
+            return std::pow(result, 2) / n_obs();
+
         }
-        return std::pow(result, 2) / n_obs();
+
+
+
+
+
+        
     }
    private:
     double alpha_ = 0.5;      // quantile order (default to median)
@@ -173,11 +216,14 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     // Debug -> salva il numero di iterazioni (per il test obs ripetute)
     std::size_t n_iter_qsrpde_ = 0;
 
+    bool gcv_oss_rip = false; 
+
     double eps_ = -1.0;   // pinball loss smoothing factor
     double pinball_loss(double x, double eps) const {   // quantile check function
         return (alpha_ - 1) * x + eps * fdapde::log1pexp(x / eps);
     };
     double pinball_loss(double x) const { return 0.5 * std::abs(x) + (alpha_ - 0.5) * x; }   // non-smoothed pinball
+
 };
 
 }   // namespace models
