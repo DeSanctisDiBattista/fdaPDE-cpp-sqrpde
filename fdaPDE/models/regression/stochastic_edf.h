@@ -37,6 +37,7 @@ class StochasticEDF {
     DMatrix<double> Y_;     // Us_^T*\Psi
     int seed_ = fdapde::random_seed;
     bool init_ = false;
+    bool gcv_2_approach_ = false; // M 
    public:
     // constructor
     StochasticEDF(int r, int seed) :
@@ -51,35 +52,75 @@ class StochasticEDF {
             // compute sample from Rademacher distribution
             std::mt19937 rng(seed_);
             std::bernoulli_distribution Be(0.5);   // bernulli distribution with parameter p = 0.5
-            Us_.resize(model_.n_locs(), r_);       // preallocate memory for matrix Us
-            // fill matrix
-            for (int i = 0; i < model_.n_locs(); ++i) {
-                for (int j = 0; j < r_; ++j) {
-                    if (Be(rng))
-                        Us_(i, j) = 1.0;
-                    else
-                        Us_(i, j) = -1.0;
+
+
+            if(gcv_2_approach_){
+                std::cout << "Trace computation (stoch) with II approach" << std::endl; 
+                Us_.resize(model_.num_unique_locs(), r_);       // preallocate memory for matrix Us
+                // fill matrix
+                for (int i = 0; i < model_.num_unique_locs(); ++i) {
+                    for (int j = 0; j < r_; ++j) {
+                        if (Be(rng))
+                            Us_(i, j) = 1.0;
+                        else
+                            Us_(i, j) = -1.0;
+                    }
                 }
+                // prepare matrix Y
+                Y_ = Us_.transpose() * model_.Psi_II_approach();
+
+            } else{
+                Us_.resize(model_.n_locs(), r_);       // preallocate memory for matrix Us
+                // fill matrix
+                for (int i = 0; i < model_.n_locs(); ++i) {
+                    for (int j = 0; j < r_; ++j) {
+                        if (Be(rng))
+                            Us_(i, j) = 1.0;
+                        else
+                            Us_(i, j) = -1.0;
+                    }
+                }
+                // prepare matrix Y
+                Y_ = Us_.transpose() * model_.Psi();
+
             }
-            // prepare matrix Y
-            Y_ = Us_.transpose() * model_.Psi();
+
             init_ = true;   // never reinitialize again
         }
         // prepare matrix Bs_
         int n = model_.n_basis();
         Bs_ = DMatrix<double>::Zero(2 * n, r_);
-        if (!model_.has_covariates())   // non-parametric model
-            Bs_.topRows(n) = -model_.PsiTD() * model_.W() * Us_;
-        else   // semi-parametric model
-            Bs_.topRows(n) = -model_.PsiTD() * model_.lmbQ(Us_);  
+
+        if(gcv_2_approach_){
+            if (!model_.has_covariates())   // non-parametric model
+                Bs_.topRows(n) = -model_.PsiTD_II_approach() * model_.W_II_approach() * Us_;
+            else   // semi-parametric model
+                Bs_.topRows(n) = -model_.PsiTD_II_approach() * model_.lmbQ_II_approach(Us_);   
+        } else{
+            if (!model_.has_covariates())   // non-parametric model
+                Bs_.topRows(n) = -model_.PsiTD() * model_.W() * Us_;
+            else   // semi-parametric model
+                Bs_.topRows(n) = -model_.PsiTD() * model_.lmbQ(Us_);   
+        }
+
 
         DMatrix<double> sol;              // room for problem solution
-        if (!model_.has_covariates()) {   // nonparametric case
-            sol = model_.invA().solve(Bs_);
-        } else {
-            // solve system (A+UCV)*x = Bs via woodbury decomposition using matrices U and V cached by model_
-            sol = SMW<>().solve(model_.invA(), model_.U(), model_.XtWX(), model_.V(), Bs_);
+        if(gcv_2_approach_){
+            if (!model_.has_covariates()) {   // nonparametric case
+                sol = model_.invA_II_approach().solve(Bs_);
+            } else {
+                // solve system (A+UCV)*x = Bs via woodbury decomposition using matrices U and V cached by model_
+                sol = SMW<>().solve(model_.invA_II_approach(), model_.U_II_approach(), model_.XtWX_II_approach(), model_.V_II_approach(), Bs_);
+            }
+        } else{
+            if (!model_.has_covariates()) {   // nonparametric case
+                sol = model_.invA().solve(Bs_);
+            } else {
+                // solve system (A+UCV)*x = Bs via woodbury decomposition using matrices U and V cached by model_
+                sol = SMW<>().solve(model_.invA(), model_.U(), model_.XtWX(), model_.V(), Bs_);
+            }
         }
+
         // compute approximated Tr[S] using monte carlo mean
         double MCmean = 0;
         for (int i = 0; i < r_; ++i) MCmean += Y_.row(i).dot(sol.col(i).head(n));
@@ -91,7 +132,17 @@ class StochasticEDF {
     void set_n_mc_samples(int r) { r_ = r; }
 
     // M 
-    const DMatrix<double>& S_get() const { return Us_; }   // M : fitticious, just to compile, since we need this method in exact_edf
+    const DMatrix<double>& S_get() const { 
+        std::cout << "ATTENTION: returning a ficticious value for the smoothing matrix" << std::endl; 
+        return Us_; 
+    }   // M : ficticious, just to compile, since we need this method in exact_edf
+
+    // M 
+    void gcv_2_approach_set_trace(bool gcv_approach) { 
+        std::cout << "Setting strategy GCV in stochastic_edf.h" << std::endl; 
+        std::cout << "boolean value = " << gcv_approach << std::endl; 
+        gcv_2_approach_ = gcv_approach; 
+    }; 
 };
 
 }   // namespace models

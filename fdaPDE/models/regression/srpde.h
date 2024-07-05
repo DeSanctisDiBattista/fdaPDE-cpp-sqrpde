@@ -37,10 +37,14 @@ namespace models {
 class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
    private:
     using Base = RegressionBase<SRPDE, SpaceOnly>;
-    SparseBlockMatrix<double, 2, 2> A_ {};         // system matrix of non-parametric problem (2N x 2N matrix)
+    SparseBlockMatrix<double, 2, 2> A_ {};         // system matrix of non-parametric problem (2N x 2N matrix)  
     fdapde::SparseLU<SpMatrix<double>> invA_ {};   // factorization of matrix A
     DVector<double> b_ {};                         // right hand side of problem's linear system (1 x 2N vector)
     SpMatrix<double> P1_{}; // ficticious 
+
+    bool gcv_oss_rip_I_strategy = false; 
+    bool gcv_oss_rip_II_strategy = false; 
+
    public:
     IMPORT_REGRESSION_SYMBOLS
     using Base::lambda_D;   // smoothing parameter in space
@@ -57,14 +61,14 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
         if (runtime().query(runtime_status::is_lambda_changed)) {
             // assemble system matrix for nonparameteric part
             A_ = SparseBlockMatrix<double, 2, 2>(
-              -PsiTD() * W() * Psi(), lambda_D() * R1().transpose(),
+              -PsiTD() * W() * Psi(), lambda_D() * R1().transpose(),   
 	      lambda_D() * R1(),      lambda_D() * R0()            );
+
             invA_.compute(A_);
+
             // prepare rhs of linear system
             b_.resize(A_.rows());
             b_.block(n_basis(), 0, n_basis(), 1) = lambda_D() * u();
-            // std::cout << "SRPDE u norm inf: " << u().cwiseAbs().maxCoeff() << std::endl;
-            // std::cout << "SRPDE u norm inf: " << u()(0,0) << "," << u()(4,0) << "," << u()(10,0) << "," << u()(100,0) << std::endl;
             return;
         }
         if (runtime().query(runtime_status::require_W_update)) {
@@ -79,7 +83,7 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
         DVector<double> sol;
         if (!has_covariates()) {   // nonparametric case
             // update rhs of SR-PDE linear system
-            b_.block(0, 0, n_basis(), 1) = -PsiTD() * W() * y();
+            b_.block(0, 0, n_basis(), 1) = -PsiTD() * W() * y();   
             // solve linear system A_*x = b_
             sol = invA_.solve(b_);
             f_ = sol.head(n_basis());
@@ -97,12 +101,142 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
             f_ = sol.head(n_basis());
             beta_ = invXtWX().solve(X().transpose() * W()) * (y() - Psi() * f_);
         }
-        // store PDE misfit
+        // store PDE misfit 
         g_ = sol.tail(n_basis());
+
+        // M 
+        if(Base::gcv_2_approach() && Base::num_unique_locs() != n_locs()){
+            std::cout << "Computing W in solve srpde for GCV II approach..." << std::endl; 
+
+            // for(std::size_t i = 0; i < Base::num_unique_locs(); ++i){
+            //     Base::W_II_approach_set(i, 1.0);   // identity matrix 
+            // }  
+            Base::W_II_approach_set(DVector<double>::Ones(Base::num_unique_locs()).asDiagonal());  
+
+            std::cout << "Computing invA in solve srpde for GCV II approach..." << std::endl; 
+            Base::invA_II_approach_set(); 
+            if(Base::has_covariates()) {
+                // Set XtWX_II_approach_set and its inverse in base class 
+                std::cout << "in solve, setting XtWX, U, V II approach" << std::endl; 
+                Base::XtWX_II_approach_set(X_II_approach().transpose()*W_II_approach()*X_II_approach()); 
+                Base::U_II_approach_set(); 
+                Base::V_II_approach_set(); 
+            }
+        } 
+
+
         return;
     }
     // GCV support
-    double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const { return (op1 - op2).squaredNorm(); }
+    double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const { 
+        
+        double result = 0.; 
+        if( gcv_oss_rip_II_strategy && (num_unique_locs()!=n_spatial_locs()) ){
+
+            std::cout << "Running GCV per obs ripetute (II approccio) in SRPDE" << std::endl;
+
+            DVector<double> fit_II_approach = skip_repeated_locs(op1);
+            DVector<double> summary_vec = compute_summary_data(); 
+            result = (fit_II_approach - summary_vec).squaredNorm();  
+        }
+        
+        if(!gcv_oss_rip_I_strategy && !gcv_oss_rip_II_strategy){
+            std::cout << "Running GCV per obs uniche in SRPDE" << std::endl;
+            return (op1 - op2).squaredNorm();      
+        }    
+
+
+        return result;   
+        
+    }
+    
+    // M 
+    void gcv_oss_rip_strategy_set(const std::string str){
+        if(str == "I"){
+            std::cout << "First strategy set" << std::endl; 
+            gcv_oss_rip_I_strategy = true; 
+        }
+        if(str == "II"){
+            std::cout << "Second strategy set" << std::endl; 
+            gcv_oss_rip_II_strategy = true; 
+            Base::gcv_2_approach_set(true); 
+        }
+    }
+
+
+
+    // GCV support (repeated observations)
+    // computes the summary vector of the data 
+    DVector<double> compute_summary_data() const{
+        DVector<double> summary_vec; 
+        summary_vec.resize(Base::num_unique_locs()); 
+
+        unsigned int i = 0;   // index of the first observation in the subgroup
+        unsigned int count = 0; 
+        while(i < n_locs()){      
+            // extract the sub-vector of the observations with same location i 
+            std::vector<double> obs_loc_i;
+            // sum of the observation in sub-group i 
+            double sum = 0.; 
+            
+            // the first of the group should always be considered
+            obs_loc_i.push_back(y()(i));
+            sum += y()(i);    
+            
+            unsigned int j = i+1;    // index runnig on the subgroup starting from its second observation (nb: it is global as i it is)
+            bool avvistati_na2 = false; 
+            while(j < n_locs() && Base::unique_locs_flags()[j]==0){
+
+                if(std::isnan(y()(j)) && !avvistati_na2){
+                    std::cout << "avvistati nana in DATI in compute summary!!" << std::endl; 
+                    avvistati_na2 = true; 
+                }
+                obs_loc_i.push_back(y()(j));  
+                sum += y()(j); 
+                j++;  
+            }
+            i = j; 
+
+            avvistati_na2 = false; 
+            if(std::isnan(sum) && !avvistati_na2){
+                std::cout << "avvistati nana in SUM in compute summary!!" << std::endl; 
+                avvistati_na2 = true; 
+            }
+
+            if(std::abs(sum / obs_loc_i.size()) < 1e-10){
+                std::cout << "ATT in compute summary: very small summary" << std::endl; 
+                std::cout << "value=" << sum / obs_loc_i.size() << std::endl; 
+            } 
+            //std::cout << "obs_loc_i.size() = " << obs_loc_i.size() << std::endl; 
+ 
+            summary_vec(count) = sum / obs_loc_i.size();  
+            count++; 
+
+        }
+
+        return summary_vec; 
+    }
+
+
+    // Given the vector v of length n_locs(), returns the vector selecting only the entries correspondent to unique locations
+    DVector<double> skip_repeated_locs(DVector<double> v) const{
+        
+        DVector<double> v_reduced; 
+        if(v.size()!=n_locs()){
+            std::cout << "ATT: the vector you want to reduce is not of size n*" << std::endl;   
+        }
+        std::size_t j = 0; 
+        v_reduced.resize(Base::num_unique_locs()); 
+        for(std::size_t i = 0; i < n_locs(); ++i) {
+            if(Base::unique_locs_flags()[i]==1){
+                v_reduced(j) = v(i); 
+                j++; 
+            }
+        }
+
+        return v_reduced; 
+    }
+    
     // getters
     const SparseBlockMatrix<double, 2, 2>& A() const { return A_; }
     const fdapde::SparseLU<SpMatrix<double>>& invA() const { return invA_; }

@@ -254,6 +254,7 @@ template <typename RegularizationType_>
         void set_preprocess_option(bool preprocess){ do_process = preprocess;}; 
         void set_forcing_option(bool force){ force_entrance = force;}; 
         void set_max_iter(unsigned int max_it) {max_iter_ = max_it; };
+        void set_gamma_init(unsigned int gamma) {gamma0_ = gamma; };
 
         virtual ~MQSRPDE() = default;
     };

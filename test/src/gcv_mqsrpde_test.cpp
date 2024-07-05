@@ -47,6 +47,8 @@ using fdapde::testing::MeshLoader;
 using fdapde::testing::read_mtx;
 using fdapde::testing::read_csv;
 
+
+// helper functions
 double RMSE_metric(DVector<double> v1, DVector<double> v2){
     double res = 0.; 
     if(v1.size() != v2.size())
@@ -55,6 +57,25 @@ double RMSE_metric(DVector<double> v1, DVector<double> v2){
         res += (v1[i]-v2[i])*(v1[i]-v2[i]); 
     }
     return std::sqrt(1./(v1.size())*res); 
+}
+
+    
+DMatrix<double> collapse_rows(DMatrix<double> m, std::vector<bool> unique_flags, unsigned int num_unique){
+    DMatrix<double> m_ret; 
+    m_ret.resize(num_unique, m.cols()); 
+    if(unique_flags.size() != m.rows()){
+        std::cout << "problems in collapse_rows..." << std::endl; 
+    }
+    for(int j=0; j<m.cols(); ++j){
+        unsigned int count = 0; 
+        for(int i=0; i<m.rows(); ++i){
+            if(unique_flags[i]){
+                m_ret(count,j) = m(i,j); 
+                count++; 
+            }     
+        }
+    }
+    return m_ret; 
 }
 
 
@@ -1014,7 +1035,475 @@ double RMSE_metric(DVector<double> v1, DVector<double> v2){
 
 
 
-// test OBS RIPETUTE
+// // test OBS RIPETUTE
+// //    domain:       unit square
+// //    sampling:     locations != nodes
+// //    penalization: constant coefficients PDE
+// //    covariates:   no
+// //    BC:           no
+// //    order FE:     1
+// TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
+
+//     bool mean_estimation = true;    // false implies that QSRPDE is run!
+//     bool quantile_estimation = !mean_estimation;  
+
+//     bool corr = true; 
+//     std::string cor_str = "3";   // ""  "_2" "_3" "_4" "_5" "_6" "_7"
+
+//     std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
+
+//     // covariates
+//     bool has_covariates = false; 
+//     DVector<double> beta_true; 
+//     beta_true.resize(2); 
+//     beta_true << 1.0, -1.0; 
+//     std::cout << "num of covariates = " << beta_true.size() << std::endl; 
+//     // nb: nel caso semiparametrico l'RMSE viene calcolato sulle locazioni uniche
+
+//     // path test  
+//     std::string R_path; 
+//     std::string simulations_string = "sims"; 
+//     if(!corr){
+//         if(mean_estimation){
+//             R_path = "";
+//         } else{
+//             R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute";
+//         }
+         
+//     } else{
+//         if(mean_estimation){
+//             R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_cor" + cor_str;
+//         } else{
+//             R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute_cor" + cor_str;
+//         }
+//     }
+//     if(quantile_estimation){
+//         if(cor_str == "_7" || cor_str == "_8"){
+//             R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_cor" + cor_str; 
+//         }
+//     }
+
+       
+//     // data parameters
+//     std::vector<unsigned int> max_reps = {10, 20, 30, 40, 50};   // max number of repetitions 
+//     std::vector<std::string> data_types = {"data"};   // ATT: tolto data   
+//     for(auto max_rep : max_reps){
+//         data_types.push_back("data_rip_" + std::to_string(max_rep));
+//     }
+//     for(auto d : data_types)
+//         std::cout << "data_type=" << d << std::endl; 
+
+//     // pde parameters 
+//     std::string diffusion_type = "_lap"; 
+
+//     // quantile parameters 
+//     std::vector<double> alphas = {0.5, 0.95};
+//     const std::string gcv_refinement = "fine";    // "lasco" "fine"
+//     const std::string gcv_summary = "_II_appr";    // "" "_summary_mean" "_II_appr"
+
+//     std::string strategy_gcv; 
+//     if(gcv_summary == "_summary_mean")
+//         strategy_gcv = "I";  
+//     if(gcv_summary == "_II_appr")
+//         strategy_gcv = "II";  
+//     if(gcv_summary == "")
+//         strategy_gcv = "";   
+        
+//     std::cout << "strategy_gcv=" << strategy_gcv << std::endl; 
+
+//     double step_quantile; 
+//     if(gcv_refinement == "lasco"){
+//         step_quantile = 0.5;
+//     } 
+//     if(gcv_refinement == "fine"){
+//         step_quantile = 0.1; 
+//     } 
+
+//     // model selection parameters
+//     std::string smooth_type_mean = "GCV";    
+//     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
+//     bool compute_rmse = false;
+//     bool compute_gcv = true;    
+
+//     const unsigned int n_sim = 10;
+
+//     // define domain
+//     std::string domain_str; 
+//     MeshLoader<Triangulation<2, 2>> domain("unit_square_25");
+
+//     // define regularizing PDE
+//     auto L = -laplacian<FEM>();   
+//     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3, 1);
+//     PDE<Triangulation<2, 2>, decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
+
+//     // lambdas sequences 
+//     std::vector<double> lambdas_mean;
+//     if(norm_loss == "")
+//         for(double x = -7.5; x <= -2; x += 0.1) lambdas_mean.push_back(std::pow(10, x));
+//     if(norm_loss == "_norm_loss")
+//         for(double x = -11.0; x <= 2.0; x += 0.5) lambdas_mean.push_back(std::pow(10, x));
+
+//     std::vector<double> lambdas_quantile;
+//     for(double x = -9.5; x <= -1.5; x += step_quantile) lambdas_quantile.push_back(std::pow(10, x));
+    
+//     bool force_lambdas_longer = false; 
+//     std::vector<double> lambdas_longer; 
+//     for(double x = -3.0; x <= -1.0; x += step_quantile) lambdas_longer.push_back(std::pow(10, x));
+
+//     double best_lambda; 
+
+
+//     // Simulations 
+//     for(auto sim = 1; sim <= n_sim; ++sim){
+//         std::cout << std::endl;
+//         std::cout << std::endl;
+//         std::cout << "--------------------Simulation #" << std::to_string(sim) << "-------------" << std::endl; 
+
+//         for(std::string data_type : data_types){  
+
+//             std::cout << std::endl;    
+//             std::cout << "------Data type = " << data_type << std::endl; 
+
+//             std::string gcv_summary_tmp; 
+//             std::string strategy_gcv_tmp; 
+//             if(data_type == "data"){
+//                 gcv_summary_tmp = ""; 
+//                 strategy_gcv_tmp = ""; 
+//             } else{
+//                 gcv_summary_tmp = gcv_summary; 
+//                 strategy_gcv_tmp = strategy_gcv; 
+//             }
+
+//             // Read locations and data 
+//             std::string loc_str; 
+//             if(data_type.length() >= 2 && data_type.substr(data_type.length() - 2) != "ta"){
+//                 loc_str = "/locs_rip.csv"; 
+//             } else{
+//                 loc_str = "/locs.csv"; 
+//             }
+            
+//             std::string data_path = R_path + "/" + data_type; 
+//             DMatrix<double> loc = read_csv<double>(data_path + loc_str); 
+//             std::cout << "locs size = " << loc.rows() << std::endl; 
+
+//             DMatrix<double> y = read_csv<double>(data_path + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+//             std::cout << "size y in test =" << y.rows() << std::endl;
+
+//             DMatrix<double> X; 
+//             if(has_covariates){
+//                 std::string str_rip; 
+//                 if(data_type.length() >= 2 && data_type.substr(data_type.length() - 2) != "ta"){
+//                    str_rip = "_rip"; 
+//                 } else{
+//                     str_rip = ""; 
+//                 }
+//                 X = read_csv<double>(data_path + "/X" + str_rip + ".csv");   
+//                 std::cout << "dim X=" << X.rows() << ";" << X.cols() << std::endl;      
+//             }
+
+//             BlockFrame<double, int> df;
+//             df.insert(OBSERVATIONS_BLK, y);
+//             if(has_covariates)
+//                 df.insert(DESIGN_MATRIX_BLK, X);
+
+
+//             if(mean_estimation){
+
+//                 std::cout << "-----MEAN REGRESSION-----------------" << std::endl;
+
+//                 // define lambda sequence as matrix 
+//                 DMatrix<double> lambdas_mat;
+//                 std::vector<double> lambdas = lambdas_mean; 
+          
+//                 lambdas_mat.resize(lambdas.size(), 1); 
+//                 for(auto i = 0; i < lambdas_mat.rows(); ++i){
+//                     lambdas_mat(i,0) = lambdas[i]; 
+//                 }
+
+//                 if(compute_gcv){
+//                     if(smooth_type_mean == "GCV"){
+
+//                         std::cout << "------------------gcv computation-----------------" << std::endl;
+
+//                         std::string gcv_path = data_path + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+//                         std::cout << "gcv_path=" << gcv_path << std::endl;     
+
+//                         SRPDE model_cv(problem, Sampling::pointwise);
+//                         model_cv.set_spatial_locations(loc);
+//                         model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+
+//                         model_cv.set_data(df);
+//                         model_cv.init();
+
+//                         // define GCV function and grid of \lambda_D values
+//                         auto GCV = model_cv.gcv<ExactEDF>();  
+
+//                         // optimize GCV
+//                         Grid<fdapde::Dynamic> opt;
+//                         opt.optimize(GCV, lambdas_mat);
+                        
+//                         best_lambda = opt.optimum()(0,0);
+
+//                         // Save GCV score (no radice in SRPDE!)
+//                         std::cout << "gcv_path=" << gcv_path << std::endl; 
+//                         std::ofstream fileGCV_scores(gcv_path + "/score" + gcv_summary_tmp + norm_loss + ".csv");
+//                         for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+//                             fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n"; 
+//                         fileGCV_scores.close();
+
+//                         // Save GCV edf
+//                         std::ofstream fileGCV_edfs(gcv_path + "/edf" + gcv_summary_tmp + norm_loss + ".csv");
+//                         for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+//                             fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+//                         fileGCV_edfs.close();
+            
+//                         std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
+
+//                         // Save lambda sequence 
+//                         std::ofstream fileLambdaS(gcv_path + "/lambdas_seq" + gcv_summary_tmp + norm_loss + ".csv");
+//                         for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+//                             fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+//                         fileLambdaS.close();
+
+//                         // Save lambda GCVopt for all alphas
+//                         std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv");
+//                         if(fileLambdaoptS.is_open()){
+//                             fileLambdaoptS << std::setprecision(16) << best_lambda;
+//                             fileLambdaoptS.close();
+//                         }
+                        
+
+//                     }
+            
+//                 }
+
+//                 if(compute_rmse){
+//                     std::cout << "------------------RMSE computation-----" << std::endl; 
+
+//                     std::string rmse_path = data_path + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+//                     // RMSE
+//                     DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
+//                     DMatrix<double> fn_true = read_csv<double>(R_path + "/true/mean_true_loc.csv");
+
+//                     std::vector<double> rmse_score; 
+//                     rmse_score.resize(lambdas_mean.size()); 
+//                     double count_l = 0; 
+//                     for(auto lambda : lambdas_mean){
+//                         SRPDE model_rmse(problem, Sampling::pointwise);
+//                         // set model's data
+//                         model_rmse.set_spatial_locations(loc);
+//                         model_rmse.set_lambda_D(lambda);           
+                        
+//                         model_rmse.set_data(df);
+//                         model_rmse.init();
+//                         model_rmse.solve();
+                        
+//                         DVector<double> sol; 
+//                         DVector<double> sol_true; 
+//                         if(has_covariates){
+//                             sol = collapse_rows(model_rmse.Psi()*model_rmse.f(), model_rmse.unique_locs_flags(), model_rmse.num_unique_locs()) + model_rmse.X_II_approach()*model_rmse.beta(); 
+//                             sol_true = fn_true +  model_rmse.X_II_approach()*beta_true;  
+//                         } else{
+//                             sol = model_rmse.f(); 
+//                             sol_true = f_true; 
+//                         }
+//                         rmse_score[count_l] = RMSE_metric(sol, sol_true); 
+
+//                         count_l = count_l+1; 
+//                     }
+
+//                     auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
+                    
+//                     // Save lambda sequence 
+//                     std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + norm_loss + ".csv");
+//                     for(std::size_t i = 0; i < lambdas.size(); ++i) 
+//                         fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
+//                     fileLambdaS_rmse.close();
+
+//                     // Save lambda RMSEopt for all alphas
+//                     std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + norm_loss + ".csv");
+//                     if(fileLambdaoptS_rmse.is_open()){
+//                         fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
+//                         fileLambdaoptS_rmse.close();
+//                     }
+
+//                     // Save score 
+//                     std::ofstream fileRMSE_scores(rmse_path + "/score" + norm_loss + ".csv");
+//                     for(std::size_t i = 0; i < rmse_score.size(); ++i) 
+//                         fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
+//                     fileRMSE_scores.close();
+                
+//                 }    
+
+//             }
+
+
+//             if(quantile_estimation){
+
+//                 for(auto alpha : alphas){
+
+//                     unsigned int alpha_int = alpha*100; 
+//                     std::string alpha_string = std::to_string(alpha_int); 
+
+//                     std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
+
+//                     // define lambda sequence as matrix 
+//                     DMatrix<double> lambdas_mat;
+//                     std::vector<double> lambdas; 
+//                     if(force_lambdas_longer){
+//                         lambdas = lambdas_longer; 
+//                     } else{
+//                         lambdas = lambdas_quantile; 
+//                     }
+//                     lambdas_mat.resize(lambdas.size(), 1); 
+//                     for(auto i = 0; i < lambdas_mat.rows(); ++i){
+//                         lambdas_mat(i,0) = lambdas[i]; 
+//                     }
+
+//                     if(compute_gcv){
+//                         std::cout << "-----GCV computation-----" << std::endl; 
+//                         for(auto smooth_type : smooth_types_quantile){
+
+//                             const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
+
+//                             std::string gcv_path = data_path + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                
+//                             QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
+//                             model_cv.set_spatial_locations(loc);
+//                             model_cv.set_eps_power(eps_power); 
+                                            
+//                             model_cv.set_data(df);
+//                             model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+//                             model_cv.init();
+
+//                             // define GCV function and grid of \lambda_D values
+//                             auto GCV = model_cv.gcv<ExactEDF>();  
+
+//                             // optimize GCV
+//                             Grid<fdapde::Dynamic> opt;
+//                             opt.optimize(GCV, lambdas_mat);
+                            
+//                             best_lambda = opt.optimum()(0,0);
+
+//                             // Save GCV score
+//                             std::ofstream fileGCV_scores(gcv_path + "/score_" + gcv_refinement + gcv_summary_tmp + ".csv");
+//                             for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+//                                 fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
+//                             fileGCV_scores.close();
+
+//                             // Save GCV edf
+//                             std::ofstream fileGCV_edfs(gcv_path + "/edf_" + gcv_refinement + gcv_summary_tmp + ".csv");
+//                             for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+//                                 fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+//                             fileGCV_edfs.close();
+                
+//                             std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
+
+//                             // Save lambda sequence 
+//                             if(force_lambdas_longer){
+//                                 std::cout << "forcing lambda sequence to be longer" << std::endl;
+//                                 std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_ext" + gcv_summary + ".csv");
+//                                 for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+//                                     fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+//                                 fileLambdaS.close();
+
+//                                 // Save lambda GCVopt for all alphas
+//                                 std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_ext_" + gcv_refinement + gcv_summary + ".csv");
+//                                 if(fileLambdaoptS.is_open()){
+//                                     fileLambdaoptS << std::setprecision(16) << best_lambda;
+//                                     fileLambdaoptS.close();
+//                                 }
+//                             } else{
+//                                 std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_" + gcv_refinement + gcv_summary_tmp + ".csv");
+//                                 for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+//                                     fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+//                                 fileLambdaS.close();
+
+//                                 // Save lambda GCVopt for all alphas
+//                                 std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_" + gcv_refinement + gcv_summary_tmp + ".csv");
+//                                 if(fileLambdaoptS.is_open()){
+//                                     fileLambdaoptS << std::setprecision(16) << best_lambda;
+//                                     fileLambdaoptS.close();
+//                                 }
+//                             }
+
+//                         }
+                
+//                     }
+
+//                     if(compute_rmse){
+//                         std::cout << "-----RMSE computation-----" << std::endl; 
+
+//                         std::string rmse_path = data_path + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+//                         // RMSE
+//                         DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
+//                         DMatrix<double> fn_true = read_csv<double>(R_path + "/true/fn_true_" + alpha_string + ".csv");
+
+//                         std::vector<double> rmse_score; 
+//                         rmse_score.resize(lambdas_quantile.size()); 
+//                         double count_l = 0; 
+//                         for(auto lambda : lambdas_quantile){
+//                             QSRPDE<SpaceOnly> model_rmse(problem, Sampling::pointwise, alpha);
+//                             // set model's data
+//                             model_rmse.set_spatial_locations(loc);
+//                             model_rmse.set_lambda_D(lambda);           
+                            
+//                             model_rmse.set_data(df);
+//                             model_rmse.init();
+//                             model_rmse.solve();
+
+//                             DVector<double> sol; 
+//                             DVector<double> sol_true; 
+//                             if(has_covariates){
+//                                 sol = collapse_rows(model_rmse.Psi()*model_rmse.f(), model_rmse.unique_locs_flags(), model_rmse.num_unique_locs()) + model_rmse.X_II_approach()*model_rmse.beta();   
+//                                 sol_true = fn_true +  model_rmse.X_II_approach()*beta_true;  
+//                             } else{
+//                                 sol = model_rmse.f(); 
+//                                 sol_true = f_true; 
+//                             }
+
+//                             rmse_score[count_l] = RMSE_metric(sol, sol_true); 
+
+//                             count_l = count_l+1; 
+//                         }
+
+//                         auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
+                        
+//                         // Save lambda sequence 
+//                         std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq_" + gcv_refinement + ".csv");
+//                         for(std::size_t i = 0; i < lambdas.size(); ++i) 
+//                             fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
+//                         fileLambdaS_rmse.close();
+
+//                         // Save lambda RMSEopt for all alphas
+//                         std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt_" + gcv_refinement + ".csv");
+//                         if(fileLambdaoptS_rmse.is_open()){
+//                             fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
+//                             fileLambdaoptS_rmse.close();
+//                         }
+
+//                         // Save score 
+//                         std::ofstream fileRMSE_scores(rmse_path + "/score_" + gcv_refinement + ".csv");
+//                         for(std::size_t i = 0; i < rmse_score.size(); ++i) 
+//                             fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
+//                         fileRMSE_scores.close();
+                    
+//                     }        
+//                 }
+
+//             }
+
+
+//         }
+
+
+//     }
+
+// }
+
+
+
+// test OBS RIPETUTE NEW
 //    domain:       unit square
 //    sampling:     locations != nodes
 //    penalization: constant coefficients PDE
@@ -1023,59 +1512,57 @@ double RMSE_metric(DVector<double> v1, DVector<double> v2){
 //    order FE:     1
 TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
 
-    bool mean_estimation = false;    // false implies that QSRPDE is run!
+    bool mean_estimation = true;    // false implies that QSRPDE is run!
     bool quantile_estimation = !mean_estimation;  
 
-    bool corr = true; 
-    std::string cor_str = "_7";   // ""  "_2" "_3" "_4" "_5" "_6" "_7"
+    bool corr = false; 
+    std::string test_str = "4";   // "4"
+
+    std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
+
     // path test  
     std::string R_path; 
-    std::string simulations_string = "simulations"; 
-    if(!corr){
-        if(mean_estimation){
-            R_path = "";
-        } else{
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute";
-        }
-         
-    } else{
-        if(mean_estimation){
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_cor" + cor_str;
-        } else{
-            R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_obs_ripetute_cor" + cor_str;
-        }
-    }
-    if(cor_str == "_7"){
-        R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_cor" + cor_str;
-        simulations_string = "sims"; 
-    }
-       
+    std::string simulations_string = "sims"; 
+
+
+    std::vector<std::string> nxx_vec = {"13", "23", "39"}; 
+    const std::string chosen_max_repetion = "10"; 
+    const std::string chosen_nxx_loc = "13"; 
+
+
+    if(mean_estimation)
+        R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_" + test_str;
+
+
     // data parameters
-    std::vector<unsigned int> max_reps = {10, 30, 50};   // max number of repetitions 
-    std::vector<std::string> data_types = {"data"};    
+    std::vector<unsigned int> max_reps = {10, 50};   // max number of repetitions 
+    std::vector<std::string> data_types = {"data"};   // ATT: tolto data   
     for(auto max_rep : max_reps){
         data_types.push_back("data_rip_" + std::to_string(max_rep));
     }
+    for(auto d : data_types)
+        std::cout << "data_type=" << d << std::endl; 
 
     // pde parameters 
     std::string diffusion_type = "_lap"; 
 
     // quantile parameters 
-    std::vector<double> alphas = {0.50};
-    const std::string gcv_refinement = "fine";    // "lasco" "fine"
-    const std::string gcv_summary = "_summary_mean";    // "mean"
-    double step_quantile; 
-    if(gcv_refinement == "lasco"){
-        step_quantile = 0.5;
-    } 
-    if(gcv_refinement == "fine"){
-        step_quantile = 0.1; 
-    } 
+    std::vector<double> alphas = {0.5, 0.95};
+
+    const std::string gcv_summary = "";    // ""  "_II_appr"
+
+    std::string strategy_gcv; 
+    if(gcv_summary == "_II_appr")
+        strategy_gcv = "II";  
+    if(gcv_summary == "")
+        strategy_gcv = "";   
+        
+    std::cout << "strategy_gcv=" << strategy_gcv << std::endl; 
 
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
-    bool compute_rmse = false;
+    bool compute_rmse = true;
     bool compute_gcv = true;    
 
     const unsigned int n_sim = 15;
@@ -1091,14 +1578,10 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
     // lambdas sequences 
     std::vector<double> lambdas_mean;
-    for(double x = -7.5; x <= -2.0; x += 0.05) lambdas_mean.push_back(std::pow(10, x));
+    for(double x = -11.0; x <= 2.0; x += 0.1) lambdas_mean.push_back(std::pow(10, x));
 
     std::vector<double> lambdas_quantile;
-    for(double x = -9.5; x <= -1.5; x += step_quantile) lambdas_quantile.push_back(std::pow(10, x));
-    
-    bool force_lambdas_longer = false; 
-    std::vector<double> lambdas_longer; 
-    for(double x = -3.0; x <= -1.0; x += step_quantile) lambdas_longer.push_back(std::pow(10, x));
+    for(double x = -9.5; x <= -1.5; x += 0.1) lambdas_quantile.push_back(std::pow(10, x));
 
     double best_lambda; 
 
@@ -1115,180 +1598,330 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
             std::cout << "------Data type = " << data_type << std::endl; 
 
             std::string gcv_summary_tmp; 
+            std::string strategy_gcv_tmp; 
             if(data_type == "data"){
                 gcv_summary_tmp = ""; 
+                strategy_gcv_tmp = ""; 
             } else{
                 gcv_summary_tmp = gcv_summary; 
+                strategy_gcv_tmp = strategy_gcv; 
             }
 
-            // Read locations and data 
-            std::string loc_str; 
-            if(data_type.length() >= 2 && data_type.substr(data_type.length() - 2) != "ta"){
-                loc_str = "/locs_rip.csv"; 
-            } else{
-                loc_str = "/locs.csv"; 
-            }
-            
-            std::string data_path = R_path + "/" + data_type; 
-            DMatrix<double> loc = read_csv<double>(data_path + loc_str); 
-            std::cout << "locs size = " << loc.rows() << std::endl; 
-
-            DMatrix<double> y = read_csv<double>(data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/y.csv");
-            BlockFrame<double, int> df;
-            df.insert(OBSERVATIONS_BLK, y);
-
-
-            if(mean_estimation){
-
-                std::cout << "-----MEAN REGRESSION-----------------" << std::endl;
-
-                // define lambda sequence as matrix 
-                DMatrix<double> lambdas_mat;
-                std::vector<double> lambdas = lambdas_mean; 
-          
-                lambdas_mat.resize(lambdas.size(), 1); 
-                for(auto i = 0; i < lambdas_mat.rows(); ++i){
-                    lambdas_mat(i,0) = lambdas[i]; 
-                }
-
-                if(compute_gcv){
-                    if(smooth_type_mean == "GCV"){
-
-                        std::cout << "------------------gcv computation-----------------" << std::endl;
-
-                        std::string gcv_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
-                            
-                        SRPDE model_cv(problem, Sampling::pointwise);
-                        model_cv.set_spatial_locations(loc);
-                                        
-                        model_cv.set_data(df);
-                        model_cv.init();
-
-                        // define GCV function and grid of \lambda_D values
-                        auto GCV = model_cv.gcv<ExactEDF>();  
-
-                        // optimize GCV
-                        Grid<fdapde::Dynamic> opt;
-                        opt.optimize(GCV, lambdas_mat);
-                        
-                        best_lambda = opt.optimum()(0,0);
-
-                        // Save GCV score (no radice in SRPDE!)
-                        std::ofstream fileGCV_scores(gcv_path + "/score.csv");
-                        for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-                            fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n"; 
-                        fileGCV_scores.close();
-
-                        // Save GCV edf
-                        std::ofstream fileGCV_edfs(gcv_path + "/edf.csv");
-                        for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
-                            fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
-                        fileGCV_edfs.close();
-            
-                        std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
-
-                        // Save lambda sequence 
-                        std::ofstream fileLambdaS(gcv_path + "/lambdas_seq.csv");
-                        for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
-                            fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
-                        fileLambdaS.close();
-
-                        // Save lambda GCVopt for all alphas
-                        std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt.csv");
-                        if(fileLambdaoptS.is_open()){
-                            fileLambdaoptS << std::setprecision(16) << best_lambda;
-                            fileLambdaoptS.close();
-                        }
-                        
-
-                    }
-            
-                }
-
-                if(compute_rmse){
-                    std::cout << "------------------RMSE computation-----" << std::endl; 
-
-                    std::string rmse_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
-                    // RMSE
-                    DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
-
-                    std::vector<double> rmse_score; 
-                    rmse_score.resize(lambdas_mean.size()); 
-                    double count_l = 0; 
-                    for(auto lambda : lambdas_mean){
-                        SRPDE model_rmse(problem, Sampling::pointwise);
-                        // set model's data
-                        model_rmse.set_spatial_locations(loc);
-                        model_rmse.set_lambda_D(lambda);           
-                        
-                        model_rmse.set_data(df);
-                        model_rmse.init();
-                        model_rmse.solve();
-
-                        rmse_score[count_l] = RMSE_metric(model_rmse.f(), f_true); 
-
-                        count_l = count_l+1; 
-                    }
-
-                    auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
+            if(data_type == ("data_rip_" + chosen_max_repetion)){
+                for(std::string nxx_loc : nxx_vec){
                     
-                    // Save lambda sequence 
-                    std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq.csv");
-                    for(std::size_t i = 0; i < lambdas.size(); ++i) 
-                        fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
-                    fileLambdaS_rmse.close();
+                    std::string data_path = R_path + "/" + data_type; 
+                    DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
+                    std::cout << "locs size = " << loc.rows() << std::endl; 
 
-                    // Save lambda RMSEopt for all alphas
-                    std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt.csv");
-                    if(fileLambdaoptS_rmse.is_open()){
-                        fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
-                        fileLambdaoptS_rmse.close();
-                    }
+                    DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+                    std::cout << "size y in test =" << y.rows() << std::endl;
 
-                    // Save score 
-                    std::ofstream fileRMSE_scores(rmse_path + "/score.csv");
-                    for(std::size_t i = 0; i < rmse_score.size(); ++i) 
-                        fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
-                    fileRMSE_scores.close();
+                    BlockFrame<double, int> df;
+                    df.insert(OBSERVATIONS_BLK, y);
+
+
+                    if(mean_estimation){
+
+                        std::cout << "-----MEAN REGRESSION-----------------" << std::endl;
+
+                        // define lambda sequence as matrix 
+                        DMatrix<double> lambdas_mat;
+                        std::vector<double> lambdas = lambdas_mean; 
                 
-                }    
+                        lambdas_mat.resize(lambdas.size(), 1); 
+                        for(auto i = 0; i < lambdas_mat.rows(); ++i){
+                            lambdas_mat(i,0) = lambdas[i]; 
+                        }
+
+                        if(compute_gcv){
+                            if(smooth_type_mean == "GCV"){
+
+                                std::cout << "------------------gcv computation-----------------" << std::endl;
+
+                                std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+                                std::cout << "gcv_path=" << gcv_path << std::endl;     
+
+                                SRPDE model_cv(problem, Sampling::pointwise);
+                                model_cv.set_spatial_locations(loc);
+                                model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+
+                                model_cv.set_data(df);
+                                model_cv.init();
+
+                                // define GCV function and grid of \lambda_D values
+                                auto GCV = model_cv.gcv<ExactEDF>();  
+
+                                // optimize GCV
+                                Grid<fdapde::Dynamic> opt;
+                                opt.optimize(GCV, lambdas_mat);
+                                
+                                best_lambda = opt.optimum()(0,0);
+
+                                // Save GCV score (no radice in SRPDE!)
+                                std::cout << "gcv_path=" << gcv_path << std::endl; 
+                                std::ofstream fileGCV_scores(gcv_path + "/score" + gcv_summary_tmp + norm_loss + ".csv");
+                                for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+                                    fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n"; 
+                                fileGCV_scores.close();
+
+                                // Save GCV edf
+                                std::ofstream fileGCV_edfs(gcv_path + "/edf" + gcv_summary_tmp + norm_loss + ".csv");
+                                for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+                                    fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+                                fileGCV_edfs.close();
+                    
+                                std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
+
+                                // Save lambda sequence 
+                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq" + gcv_summary_tmp + norm_loss + ".csv");
+                                for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+                                    fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+                                fileLambdaS.close();
+
+                                // Save lambda GCVopt for all alphas
+                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv");
+                                if(fileLambdaoptS.is_open()){
+                                    fileLambdaoptS << std::setprecision(16) << best_lambda;
+                                    fileLambdaoptS.close();
+                                }
+                                
+
+                            }
+                    
+                        }
+
+                        if(compute_rmse){
+                            std::cout << "------------------RMSE computation-----" << std::endl; 
+
+                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                            // RMSE
+                            DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
+
+                            std::vector<double> rmse_score; 
+                            rmse_score.resize(lambdas_mean.size()); 
+                            double count_l = 0; 
+                            for(auto lambda : lambdas_mean){
+                                SRPDE model_rmse(problem, Sampling::pointwise);
+                                // set model's data
+                                model_rmse.set_spatial_locations(loc);
+                                model_rmse.set_lambda_D(lambda);           
+                                
+                                model_rmse.set_data(df);
+                                model_rmse.init();
+                                model_rmse.solve();
+                                
+                                DVector<double> sol; 
+                                DVector<double> sol_true; 
+                                sol = model_rmse.f(); 
+                                sol_true = f_true; 
+                                
+                                rmse_score[count_l] = RMSE_metric(sol, sol_true); 
+
+                                count_l = count_l+1; 
+                            }
+
+                            auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
+                            
+                            // Save lambda sequence 
+                            std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + norm_loss + ".csv");
+                            for(std::size_t i = 0; i < lambdas.size(); ++i) 
+                                fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
+                            fileLambdaS_rmse.close();
+
+                            // Save lambda RMSEopt for all alphas
+                            std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + norm_loss + ".csv");
+                            if(fileLambdaoptS_rmse.is_open()){
+                                fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
+                                fileLambdaoptS_rmse.close();
+                            }
+
+                            // Save score 
+                            std::ofstream fileRMSE_scores(rmse_path + "/score" + norm_loss + ".csv");
+                            for(std::size_t i = 0; i < rmse_score.size(); ++i) 
+                                fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
+                            fileRMSE_scores.close();
+                        
+                        }    
 
             }
 
 
-            if(quantile_estimation){
+                    if(quantile_estimation){
 
-                for(auto alpha : alphas){
+                        for(auto alpha : alphas){
 
-                    unsigned int alpha_int = alpha*100; 
-                    std::string alpha_string = std::to_string(alpha_int); 
+                            unsigned int alpha_int = alpha*100; 
+                            std::string alpha_string = std::to_string(alpha_int); 
 
-                    std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
+                            std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
+
+                            // define lambda sequence as matrix 
+                            DMatrix<double> lambdas_mat;
+                            std::vector<double> lambdas; 
+                            lambdas = lambdas_quantile; 
+                            
+                            lambdas_mat.resize(lambdas.size(), 1); 
+                            for(auto i = 0; i < lambdas_mat.rows(); ++i){
+                                lambdas_mat(i,0) = lambdas[i]; 
+                            }
+
+                            if(compute_gcv){
+                                std::cout << "-----GCV computation-----" << std::endl; 
+                                for(auto smooth_type : smooth_types_quantile){
+
+                                    const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
+
+                                    std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                        
+                                    QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
+                                    model_cv.set_spatial_locations(loc);
+                                    model_cv.set_eps_power(eps_power); 
+                                                    
+                                    model_cv.set_data(df);
+                                    model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+                                    model_cv.init();
+
+                                    // define GCV function and grid of \lambda_D values
+                                    auto GCV = model_cv.gcv<ExactEDF>();  
+
+                                    // optimize GCV
+                                    Grid<fdapde::Dynamic> opt;
+                                    opt.optimize(GCV, lambdas_mat);
+                                    
+                                    best_lambda = opt.optimum()(0,0);
+
+                                    // Save GCV score
+                                    std::ofstream fileGCV_scores(gcv_path + "/score" + gcv_summary_tmp + ".csv");
+                                    for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+                                        fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
+                                    fileGCV_scores.close();
+
+                                    // Save GCV edf
+                                    std::ofstream fileGCV_edfs(gcv_path + "/edf" + gcv_summary_tmp + ".csv");
+                                    for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+                                        fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+                                    fileGCV_edfs.close();
+                        
+                                    std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
+
+                                    // Save lambda sequence 
+                                    std::ofstream fileLambdaS(gcv_path + "/lambdas_seq" + gcv_summary_tmp + ".csv");
+                                    for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+                                        fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+                                    fileLambdaS.close();
+
+                                    // Save lambda GCVopt for all alphas
+                                    std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
+                                    if(fileLambdaoptS.is_open()){
+                                        fileLambdaoptS << std::setprecision(16) << best_lambda;
+                                        fileLambdaoptS.close();
+                                    }
+                                    
+
+                                }
+                        
+                            }
+
+                            if(compute_rmse){
+                                std::cout << "-----RMSE computation-----" << std::endl; 
+
+                                std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                // RMSE
+                                DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
+
+                                std::vector<double> rmse_score; 
+                                rmse_score.resize(lambdas_quantile.size()); 
+                                double count_l = 0; 
+                                for(auto lambda : lambdas_quantile){
+                                    QSRPDE<SpaceOnly> model_rmse(problem, Sampling::pointwise, alpha);
+                                    // set model's data
+                                    model_rmse.set_spatial_locations(loc);
+                                    model_rmse.set_lambda_D(lambda);           
+                                    
+                                    model_rmse.set_data(df);
+                                    model_rmse.init();
+                                    model_rmse.solve();
+
+                                    DVector<double> sol; 
+                                    DVector<double> sol_true; 
+
+                                    sol = model_rmse.f(); 
+                                    sol_true = f_true; 
+                                    
+
+                                    rmse_score[count_l] = RMSE_metric(sol, sol_true); 
+
+                                    count_l = count_l+1; 
+                                }
+
+                                auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
+                                
+                                // Save lambda sequence 
+                                std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + ".csv");
+                                for(std::size_t i = 0; i < lambdas.size(); ++i) 
+                                    fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
+                                fileLambdaS_rmse.close();
+
+                                // Save lambda RMSEopt for all alphas
+                                std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + ".csv");
+                                if(fileLambdaoptS_rmse.is_open()){
+                                    fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
+                                    fileLambdaoptS_rmse.close();
+                                }
+
+                                // Save score 
+                                std::ofstream fileRMSE_scores(rmse_path + "/score" + ".csv");
+                                for(std::size_t i = 0; i < rmse_score.size(); ++i) 
+                                    fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
+                                fileRMSE_scores.close();
+                            
+                            }        
+                        }
+
+            }
+
+                }
+            } else{
+                std::cout << "in else" << std::endl; 
+                std::string nxx_loc = chosen_nxx_loc; 
+
+                std::string data_path = R_path + "/" + data_type; 
+                DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
+                std::cout << "locs size = " << loc.rows() << std::endl; 
+
+                DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+                std::cout << "size y in test =" << y.rows() << std::endl;
+
+                BlockFrame<double, int> df;
+                df.insert(OBSERVATIONS_BLK, y);
+
+
+                if(mean_estimation){
+
+                    std::cout << "-----MEAN REGRESSION-----------------" << std::endl;
 
                     // define lambda sequence as matrix 
                     DMatrix<double> lambdas_mat;
-                    std::vector<double> lambdas; 
-                    if(force_lambdas_longer){
-                        lambdas = lambdas_longer; 
-                    } else{
-                        lambdas = lambdas_quantile; 
-                    }
+                    std::vector<double> lambdas = lambdas_mean; 
+            
                     lambdas_mat.resize(lambdas.size(), 1); 
                     for(auto i = 0; i < lambdas_mat.rows(); ++i){
                         lambdas_mat(i,0) = lambdas[i]; 
                     }
 
                     if(compute_gcv){
-                        for(auto smooth_type : smooth_types_quantile){
+                        if(smooth_type_mean == "GCV"){
 
-                            const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
+                            std::cout << "------------------gcv computation-----------------" << std::endl;
 
-                            std::string gcv_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
-                                
-                            QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
+                            std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+                            std::cout << "gcv_path=" << gcv_path << std::endl;     
+
+                            SRPDE model_cv(problem, Sampling::pointwise);
                             model_cv.set_spatial_locations(loc);
-                            model_cv.set_eps_power(eps_power); 
-                                            
+                            model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+
                             model_cv.set_data(df);
                             model_cv.init();
 
@@ -1301,14 +1934,15 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             
                             best_lambda = opt.optimum()(0,0);
 
-                            // Save GCV score
-                            std::ofstream fileGCV_scores(gcv_path + "/score_" + gcv_refinement + gcv_summary_tmp + ".csv");
+                            // Save GCV score (no radice in SRPDE!)
+                            std::cout << "gcv_path=" << gcv_path << std::endl; 
+                            std::ofstream fileGCV_scores(gcv_path + "/score" + gcv_summary_tmp + norm_loss + ".csv");
                             for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
-                                fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
+                                fileGCV_scores << std::setprecision(16) << GCV.gcvs()[i] << "\n"; 
                             fileGCV_scores.close();
 
                             // Save GCV edf
-                            std::ofstream fileGCV_edfs(gcv_path + "/edf_" + gcv_refinement + gcv_summary_tmp + ".csv");
+                            std::ofstream fileGCV_edfs(gcv_path + "/edf" + gcv_summary_tmp + norm_loss + ".csv");
                             for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
                                 fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
                             fileGCV_edfs.close();
@@ -1316,49 +1950,35 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
 
                             // Save lambda sequence 
-                            if(force_lambdas_longer){
-                                std::cout << "forcing lambda sequence to be longer" << std::endl;
-                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_ext" + gcv_summary + ".csv");
-                                for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
-                                    fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
-                                fileLambdaS.close();
+                            std::ofstream fileLambdaS(gcv_path + "/lambdas_seq" + gcv_summary_tmp + norm_loss + ".csv");
+                            for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+                                fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+                            fileLambdaS.close();
 
-                                // Save lambda GCVopt for all alphas
-                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_ext_" + gcv_refinement + gcv_summary + ".csv");
-                                if(fileLambdaoptS.is_open()){
-                                    fileLambdaoptS << std::setprecision(16) << best_lambda;
-                                    fileLambdaoptS.close();
-                                }
-                            } else{
-                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq_" + gcv_refinement + gcv_summary_tmp + ".csv");
-                                for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
-                                    fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
-                                fileLambdaS.close();
-
-                                // Save lambda GCVopt for all alphas
-                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt_" + gcv_refinement + gcv_summary_tmp + ".csv");
-                                if(fileLambdaoptS.is_open()){
-                                    fileLambdaoptS << std::setprecision(16) << best_lambda;
-                                    fileLambdaoptS.close();
-                                }
+                            // Save lambda GCVopt for all alphas
+                            std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv");
+                            if(fileLambdaoptS.is_open()){
+                                fileLambdaoptS << std::setprecision(16) << best_lambda;
+                                fileLambdaoptS.close();
                             }
+                            
 
                         }
                 
                     }
 
                     if(compute_rmse){
-                        std::cout << "-----RMSE computation-----" << std::endl; 
+                        std::cout << "------------------RMSE computation-----" << std::endl; 
 
-                        std::string rmse_path = data_path + "/" + simulations_string "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                        std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                         // RMSE
-                        DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
+                        DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
 
                         std::vector<double> rmse_score; 
-                        rmse_score.resize(lambdas_quantile.size()); 
+                        rmse_score.resize(lambdas_mean.size()); 
                         double count_l = 0; 
-                        for(auto lambda : lambdas_quantile){
-                            QSRPDE<SpaceOnly> model_rmse(problem, Sampling::pointwise, alpha);
+                        for(auto lambda : lambdas_mean){
+                            SRPDE model_rmse(problem, Sampling::pointwise);
                             // set model's data
                             model_rmse.set_spatial_locations(loc);
                             model_rmse.set_lambda_D(lambda);           
@@ -1366,8 +1986,13 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             model_rmse.set_data(df);
                             model_rmse.init();
                             model_rmse.solve();
-
-                            rmse_score[count_l] = RMSE_metric(model_rmse.f(), f_true); 
+                            
+                            DVector<double> sol; 
+                            DVector<double> sol_true; 
+                            sol = model_rmse.f(); 
+                            sol_true = f_true; 
+                            
+                            rmse_score[count_l] = RMSE_metric(sol, sol_true); 
 
                             count_l = count_l+1; 
                         }
@@ -1375,40 +2000,172 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                         auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
                         
                         // Save lambda sequence 
-                        std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq_" + gcv_refinement + ".csv");
+                        std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + norm_loss + ".csv");
                         for(std::size_t i = 0; i < lambdas.size(); ++i) 
                             fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
                         fileLambdaS_rmse.close();
 
                         // Save lambda RMSEopt for all alphas
-                        std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt_" + gcv_refinement + ".csv");
+                        std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + norm_loss + ".csv");
                         if(fileLambdaoptS_rmse.is_open()){
                             fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
                             fileLambdaoptS_rmse.close();
                         }
 
                         // Save score 
-                        std::ofstream fileRMSE_scores(rmse_path + "/score_" + gcv_refinement + ".csv");
+                        std::ofstream fileRMSE_scores(rmse_path + "/score" + norm_loss + ".csv");
                         for(std::size_t i = 0; i < rmse_score.size(); ++i) 
                             fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
                         fileRMSE_scores.close();
                     
-                    }        
+                    }    
+
                 }
+
+
+                if(quantile_estimation){
+
+                    for(auto alpha : alphas){
+
+                        unsigned int alpha_int = alpha*100; 
+                        std::string alpha_string = std::to_string(alpha_int); 
+
+                        std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
+
+                        // define lambda sequence as matrix 
+                        DMatrix<double> lambdas_mat;
+                        std::vector<double> lambdas; 
+                        lambdas = lambdas_quantile; 
+                        
+                        lambdas_mat.resize(lambdas.size(), 1); 
+                        for(auto i = 0; i < lambdas_mat.rows(); ++i){
+                            lambdas_mat(i,0) = lambdas[i]; 
+                        }
+
+                        if(compute_gcv){
+                            std::cout << "-----GCV computation-----" << std::endl; 
+                            for(auto smooth_type : smooth_types_quantile){
+
+                                const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
+
+                                std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                    
+                                QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
+                                model_cv.set_spatial_locations(loc);
+                                model_cv.set_eps_power(eps_power); 
+                                                
+                                model_cv.set_data(df);
+                                model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+                                model_cv.init();
+
+                                // define GCV function and grid of \lambda_D values
+                                auto GCV = model_cv.gcv<ExactEDF>();  
+
+                                // optimize GCV
+                                Grid<fdapde::Dynamic> opt;
+                                opt.optimize(GCV, lambdas_mat);
+                                
+                                best_lambda = opt.optimum()(0,0);
+
+                                // Save GCV score
+                                std::ofstream fileGCV_scores(gcv_path + "/score" + gcv_summary_tmp + ".csv");
+                                for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
+                                    fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
+                                fileGCV_scores.close();
+
+                                // Save GCV edf
+                                std::ofstream fileGCV_edfs(gcv_path + "/edf" + gcv_summary_tmp + ".csv");
+                                for(std::size_t i = 0; i < GCV.edfs().size(); ++i) 
+                                    fileGCV_edfs << std::setprecision(16) << GCV.edfs()[i] << "\n"; 
+                                fileGCV_edfs.close();
+                    
+                                std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
+
+                                // Save lambda sequence 
+                                std::ofstream fileLambdaS(gcv_path + "/lambdas_seq" + gcv_summary_tmp + ".csv");
+                                for(std::size_t i = 0; i < lambdas_mat.rows(); ++i) 
+                                    fileLambdaS << std::setprecision(16) << lambdas_mat(i,0) << "\n"; 
+                                fileLambdaS.close();
+
+                                // Save lambda GCVopt for all alphas
+                                std::ofstream fileLambdaoptS(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
+                                if(fileLambdaoptS.is_open()){
+                                    fileLambdaoptS << std::setprecision(16) << best_lambda;
+                                    fileLambdaoptS.close();
+                                }
+                                
+
+                            }
+                    
+                        }
+
+                        if(compute_rmse){
+                            std::cout << "-----RMSE computation-----" << std::endl; 
+
+                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                            // RMSE
+                            DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
+
+                            std::vector<double> rmse_score; 
+                            rmse_score.resize(lambdas_quantile.size()); 
+                            double count_l = 0; 
+                            for(auto lambda : lambdas_quantile){
+                                QSRPDE<SpaceOnly> model_rmse(problem, Sampling::pointwise, alpha);
+                                // set model's data
+                                model_rmse.set_spatial_locations(loc);
+                                model_rmse.set_lambda_D(lambda);           
+                                
+                                model_rmse.set_data(df);
+                                model_rmse.init();
+                                model_rmse.solve();
+
+                                DVector<double> sol; 
+                                DVector<double> sol_true; 
+
+                                sol = model_rmse.f(); 
+                                sol_true = f_true; 
+                                
+
+                                rmse_score[count_l] = RMSE_metric(sol, sol_true); 
+
+                                count_l = count_l+1; 
+                            }
+
+                            auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
+                            
+                            // Save lambda sequence 
+                            std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + ".csv");
+                            for(std::size_t i = 0; i < lambdas.size(); ++i) 
+                                fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
+                            fileLambdaS_rmse.close();
+
+                            // Save lambda RMSEopt for all alphas
+                            std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + ".csv");
+                            if(fileLambdaoptS_rmse.is_open()){
+                                fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
+                                fileLambdaoptS_rmse.close();
+                            }
+
+                            // Save score 
+                            std::ofstream fileRMSE_scores(rmse_path + "/score" + ".csv");
+                            for(std::size_t i = 0; i < rmse_score.size(); ++i) 
+                                fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
+                            fileRMSE_scores.close();
+                        
+                        }        
+                    }
+
+                }
+
 
             }
 
 
         }
 
-
     }
 
 }
-
-
-
-
 
 
 

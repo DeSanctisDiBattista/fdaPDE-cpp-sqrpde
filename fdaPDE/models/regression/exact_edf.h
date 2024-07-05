@@ -28,13 +28,29 @@ namespace models {
 class ExactEDF {
    private:
     RegressionView<void> model_;
+    bool gcv_2_approach_ = false; // M 
     // computes smoothing matrix S = Q*\Psi*T^{-1}*\Psi^T
     const DMatrix<double>& S() {
         // std::cout << "-----------------------EXACT GCV running-------------------------------" << std::endl; 
         // factorize matrix T
-        invT_ = model_.T().partialPivLu();
-        DMatrix<double> E_ = model_.PsiTD();    // need to cast to dense for PartialPivLU::solve()
-        S_ = model_.lmbQ(model_.Psi() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
+
+        if(gcv_2_approach_){   // NB: funziona solo nel caso NONparametrico (matrici di SMW non corrette) e space-only (maschere per NA obs non corrette)
+            std::cout << "smoothing matrix computation with summarized locs" << std::endl; 
+            invT_ = model_.T_II_approach().partialPivLu();
+            //std::cout << "max norm invT= " << invT_.maxCoeff() << std::endl;
+            DMatrix<double> E_ = model_.PsiTD_II_approach();    // need to cast to dense for PartialPivLU::solve()
+            //std::cout << "max norm E= " << E_.maxCoeff() << std::endl; 
+            //std::cout << "max norm Psi= " << model_.Psi_II_approach().maxCoeff() << std::endl; 
+            //std::cout << "max norm W= " << model_.W_II_approach().diagonal().maxCoeff() << std::endl; 
+            S_ = model_.lmbQ_II_approach(model_.Psi_II_approach() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
+            //std::cout << "max norm S= " << S_.maxCoeff() << std::endl; 
+        } else{
+            std::cout << "smoothing matrix computation with all locs" << std::endl; 
+            invT_ = model_.T().partialPivLu();
+            DMatrix<double> E_ = model_.PsiTD();    // need to cast to dense for PartialPivLU::solve()
+            S_ = model_.lmbQ(model_.Psi() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
+        }
+
         return S_;
     };
    public:
@@ -47,6 +63,13 @@ class ExactEDF {
 
     // M 
     const DMatrix<double>& S_get() const { return S_; }   // return S
+
+    // M 
+    void gcv_2_approach_set_trace(bool gcv_approach) { 
+        std::cout << "Setting strategy GCV in exact_edf.h" << std::endl; 
+        std::cout << "boolean value = " << gcv_approach << std::endl; 
+        gcv_2_approach_ = gcv_approach; 
+    }; 
     
 };
 

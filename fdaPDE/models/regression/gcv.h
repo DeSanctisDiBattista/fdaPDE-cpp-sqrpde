@@ -41,11 +41,12 @@ class GCV {
     using MatrixType = DMatrix<double>;
     // type-erased wrapper for Tr[S] computation strategy
     struct EDFStrategy__ {
-        template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model>;
+        template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model, &M::S_get, &M::gcv_2_approach_set_trace>;
         // forwardings
         decltype(auto) compute() { return fdapde::invoke<double, 0>(*this); }
         void set_model(const RegressionView<void>& model) { fdapde::invoke<void, 1>(*this, model); }
         decltype(auto) S_get() const { return fdapde::invoke<const DMatrix<double>&   , 2>(*this); }  // M 
+        void gcv_2_approach_set_trace(const bool& approach) { return fdapde::invoke<void, 3>(*this, approach); }  // M
     };
 
     RegressionView<void> model_;
@@ -55,18 +56,10 @@ class GCV {
     // cache pairs (lambda, Tr[S]) for fast access if GCV is queried at an already computed point
     std::map<VectorType, double, fdapde::d_vector_compare<double>> cache_;
 
-    // M: gcv multiplier for trace correction 
-    bool gacv_ = false; 
-    double gcv_correction_factor;  // M   gcv correction
-    double phi_;  // M   gcv correction
-
-    bool gacv_star_ = false; 
-    double star_gcv_correction_factor;  // M   gcv correction versione 2. Default value is 1 (no correction)
-    double star_phi_;  // M   gcv correction versione 2
-
     std::vector<double> trace_debug;  // M debug
 
-
+    // M 
+    bool gcv_bool_approach_ = false;    // M: if you want to apply the second strategy for gcv with obs rip 
 
     // analytical expression of gcv at \lambda
     //
@@ -74,7 +67,7 @@ class GCV {
     // GCV(\lambda) = n/(edf^2)*norm(y - \hat y)^2
     ScalarField<fdapde::Dynamic, double (This::*)(const VectorType&)> gcv_;
     double gcv_impl(const VectorType& lambda) {
-
+        std::cout << "in GCV gcv_impl()" << std::endl; 
         // fit the model given current lambda
         model_.set_lambda(lambda);
         model_.init();
@@ -82,27 +75,23 @@ class GCV {
         // compute equivalent degrees of freedom given current lambda (if not already cached)
         if (cache_.find(lambda) == cache_.end()) { cache_[lambda] = trS_.compute(); }
         double trS = cache_[lambda];
-
-        if(gacv_){
-            //std::cout << "GACV score computation..." << std::endl; 
-            trS *= gcv_correction_factor;      // M   gcv correction (Nortier phd 2021)
-            trace_debug.push_back(trS); 
-        }
-        if(gacv_star_){
-            //std::cout << "GACV* score computation..." << std::endl; 
-            trS *= star_gcv_correction_factor;      // M   gcv correction (Nortier phd 2021)
-            trace_debug.push_back(trS); 
-        } 
-        if(!gacv_ && !gacv_star_){
-            //std::cout << "GCV score computation..." << std::endl; 
-        }
+        std::cout << "trS=" << trS << std::endl; 
 
         double q = model_.q();            // number of covariates
         std::size_t n = model_.n_obs();   // number of observations
-        double dor = n - (q + trS);       // residual degrees of freedom
+        double dor;                       // residual degrees of freedom
+
+        if(gcv_bool_approach_){               // M gcv for repeated observations
+            std::cout << "gcv_impl with unique locs..." << std::endl; 
+            dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
+        } else{
+            std::cout << "gcv_impl with all locs..." << std::endl; 
+            dor = n - (q + trS);       // residual degrees of freedom
+        }
+
         edfs_.emplace_back(q + trS);      // store equivalent degrees of freedom
         // return gcv at point
-        double gcv_value = (n / std::pow(dor, 2)) * (model_.norm(model_.fitted(), model_.y()));
+        double gcv_value = model_.norm(model_.fitted(), model_.y()) / std::pow(dor, 2);  // M tolta costante causa rinormalizzazione loss 
         gcvs_.emplace_back(gcv_value);
 
         return gcv_value;
@@ -114,7 +103,9 @@ class GCV {
     template <typename ModelType_, typename EDFStrategy_>
     GCV(const ModelType_& model, EDFStrategy_&& trS) : model_(model), trS_(trS), gcv_(this, &This::gcv_impl) {
         // set model pointer in edf computation strategy
+        gcv_bool_approach_ = model.gcv_2_approach(); 
         trS_.set_model(model_);
+        trS_.gcv_2_approach_set_trace(gcv_bool_approach_);
     }
     template <typename ModelType_> GCV(const ModelType_& model) : GCV(model, StochasticEDF()) { }
     GCV(const GCV& other) : model_(other.model_), trS_(other.trS_), gcv_(this, &This::gcv_impl) {
@@ -137,45 +128,42 @@ class GCV {
 
     // returns GCV index of Model in its current state
     double eval() {
+        std::cout << "in GCV eval()" << std::endl; 
         if (cache_.find(model_.lambda()) == cache_.end()) { cache_[model_.lambda()] = trS_.compute(); }
         double trS = cache_[model_.lambda()];
 
-        if(gacv_){
-            trS *= gcv_correction_factor;      // M   gcv correction (Nortier phd 2021)
-        }
-        if(gacv_star_){
-            trS *= star_gcv_correction_factor;      // M   gcv correction (Nortier phd 2021)
-        } 
         trace_debug.push_back(trS); 
 
-        // GCV(\lambda) = n/((n - (q + Tr[S]))^2)*norm(y - \hat y)^2
-        double dor = model_.n_obs() - (model_.q() + trS);   // (n - (q + Tr[S])
-        return (model_.n_obs() / std::pow(dor, 2)) * (model_.norm(model_.fitted(), model_.y()));
+        if(gcv_bool_approach_){               // M gcv for repeated observations
+            std::cout << "GCV computation with unique locs..." << std::endl; 
+            double dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
+        } else{
+            std::cout << "GCV computation with all locs..." << std::endl; 
+            // GCV(\lambda) = n/((n - (q + Tr[S]))^2)*norm(y - \hat y)^2
+            double dor = model_.n_obs() - (model_.q() + trS);   // (n - (q + Tr[S])
+        }
+        return (model_.norm(model_.fitted(), model_.y()) / std::pow(dor, 2)); // M 
+
     }
 
     // set edf_evaluation strategy
     template <typename EDFStrategy_> void set_edf_strategy(EDFStrategy_&& trS) {
         trS_ = trS;
-	if(model_) trS_.set_model(model_);
+	if(model_) {
+        trS_.set_model(model_);
+        trS_.gcv_2_approach_set_trace(gcv_bool_approach_);  // M 
+    }
 	edfs_.clear(); gcvs_.clear(); cache_.clear();
     }
     template <typename ModelType_> void set_model(ModelType_&& model) {
         model_ = model;
-	if(trS_) trS_.set_model(model_);
+	if(trS_){
+        trS_.set_model(model_);
+        trS_.gcv_2_approach_set_trace(gcv_bool_approach_); // M 
+    }
         edfs_.clear(); gcvs_.clear(); cache_.clear();
     }
     void set_step(double step) { gcv_.set_step(step); }
-
-    // M 
-    void set_correction(bool gacv, bool gacv_star, double phi) {
-        std::cout << "in correction gcv" << std::endl; 
-        gacv_ = gacv; 
-        gacv_star_ = gacv_star; 
-        phi_ = phi;
-        gcv_correction_factor = (1+2*phi_)/(2*phi_);  
-        star_gcv_correction_factor = (1+2*phi_)/(4*phi_);
-    }
-
 
     void resize(int gcv_dynamic_inner_size) {
         fdapde_assert(gcv_dynamic_inner_size == 1 || gcv_dynamic_inner_size == 2);
@@ -188,6 +176,7 @@ class GCV {
     const DMatrix<double>& compute_IC() const { return trS_.S_get(); }  // M 
     const std::vector<double> get_trace() const { return trace_debug; }  // M
     int inner_size() const { return gcv_.inner_size(); }
+    
 };
 
 // provides the analytical expresssion of GCV gradient and hessian, for newton-like optimization methods

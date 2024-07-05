@@ -24,6 +24,7 @@
     using Base::Psi;             /* n x N matrix of spatial basis evaluations at p_1 ... p_n */                        \
     using Base::PsiTD;           /* block P^T*D, being D the matrix of subdomains' measure */                          \
                                  /* returns P^T if sampling is not areal */                                            \
+                                 /* returns P^T if sampling is not areal */                                            \
     using Base::R1;              /* discretization of differential operator L (tensorized for */                       \
                                  /* space-time problems) */                                                            \
     using Base::R0;              /* mass matrix in space (tensorized for space-time problems) */                       \
@@ -45,11 +46,14 @@
     using Base::has_covariates; /* true if the model is semi-parametric */                                             \
     using Base::has_weights;    /* true if heteroscedastic observations are assumed */                                 \
     using Base::lmbQ;           /* efficient left multiplication by Q */                                               \
+    using Base::lmbQ_II_approach;        /* M */                                                                        \
     using Base::f_;             /* estimate of the nonparametric part of the model */                                  \
     using Base::g_;             /* PDE misfit */                                                                       \
     using Base::beta_;          /* estimate of coefficient vector for parametric part */                               \
     using Base::U_;             /* woodbury matrix [\Psi^T*D*W*X, 0] */                                                \
-    using Base::V_;             /* woodbury matrix [X^T*W*\Psi,   0] */
+    using Base::V_;             /* woodbury matrix [X^T*W*\Psi,   0] */                                                \
+    using Base::U_II_approach_;             /* M */                                                                     \
+    using Base::V_II_approach_;             /* M */
 
 #define FDAPDE_DELETE_INIT                                                                                             \
     void init() { return; }

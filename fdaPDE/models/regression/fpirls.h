@@ -67,7 +67,6 @@ template <typename Model_> class FPIRLS {
         }
         solver_.set_lambda(m_->lambda());     // derive smoothing level
         solver_.set_mask(m_->masked_obs());   // derive missing and masking data pattern
-
     }
     // executes the FPIRLS algorithm
     void compute() {

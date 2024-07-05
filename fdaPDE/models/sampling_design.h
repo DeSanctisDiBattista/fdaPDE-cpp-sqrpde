@@ -42,8 +42,15 @@ template <typename Model> class SamplingBase {
     FDAPDE_DEFINE_MODEL_GETTER;    // import model() method (const and non-const access)
     SpMatrix<double> Psi_;         // n x N matrix \Psi = [\psi_{ij}] = \psi_j(p_i)
     SpMatrix<double> PsiTD_;       // N x n block \Psi^T*D, being D the matrix of subdomain measures
+
+    SpMatrix<double> Psi_II_approach_;   
+    SpMatrix<double> PsiTD_II_approach_;    
+    DMatrix<double> X_II_approach_;   
+
     DiagMatrix<double> D_;         // for areal sampling, diagonal matrix of subdomains' measures, D_ = I_n otherwise
     DMatrix<double> locs_;         // matrix of spatial locations p_1, p2_, ... p_n, or subdomains D_1, D_2, ..., D_n
+
+    std::vector<bool> unique_locs_flags_; // zeros identify repeated locations 
 
     // for space-time models, perform a proper tensorization of matrix \Psi
     void tensorize_psi() {
@@ -110,22 +117,142 @@ template <typename Model> class SamplingBase {
             PsiTD_ = Psi_.transpose() * D_;
 	  } break;
         }
+
+        // M:
+        // fill the unique_locs_flags_ vector
+        bool new_loc; 
+        for(std::size_t i = 0; i < locs_.rows(); ++i) {
+            if(i==0){
+                new_loc = true; 
+            } else{
+                new_loc = !( almost_equal(locs_.coeff(i,0), locs_.coeff(i-1,0)) && almost_equal(locs_.coeff(i,1), locs_.coeff(i-1,1)) ); 
+            }
+            unique_locs_flags_.push_back(new_loc);  
+        }
+
+        //compute the reduced Psi matrix in case of repeated observations
+        if(num_unique_locs() != n_spatial_locs()){
+            //std::cout << "unique locs=" << num_unique_locs() << std::endl; 
+
+            Psi_II_approach_.resize(num_unique_locs(), model().n_spatial_basis()); 
+            PsiTD_II_approach_.resize(model().n_spatial_basis(), num_unique_locs()); 
+            unsigned int count = 0; 
+
+            std::vector<fdapde::Triplet<double>> triplet_list_psi;
+            triplet_list_psi.reserve(num_unique_locs() * Psi_.cols());
+
+            std::vector<fdapde::Triplet<double>> triplet_list_psiTD;
+            triplet_list_psiTD.reserve(num_unique_locs() * PsiTD_.rows());
+
+            for(std::size_t i = 0; i < locs_.rows(); ++i) {
+
+                if(unique_locs_flags_[i]){
+                    
+                    for(int j = 0; j < Psi_.cols(); ++j){
+                        triplet_list_psi.emplace_back(count, j, Psi_.coeff(i, j));
+                    }
+                    
+                    for(int j = 0; j < PsiTD_.rows(); ++j){
+                        triplet_list_psiTD.emplace_back(j, count, PsiTD_.coeff(j, i));
+                    }  // fatto separatamente e non come il trasposto di Psi_II_approach_ così che abbiamo già dentro le eventuali D
+
+                    count ++;
+                }
+            
+            }
+
+            Psi_II_approach_.setFromTriplets(triplet_list_psi.begin(), triplet_list_psi.end());
+            Psi_II_approach_.makeCompressed();
+
+            PsiTD_II_approach_.setFromTriplets(triplet_list_psiTD.begin(), triplet_list_psiTD.end());
+            PsiTD_II_approach_.makeCompressed();
+
+            // check 
+            double maxPsi = 0.; 
+            for(int i = 0; i < Psi_II_approach_.rows(); ++i){
+                for(int j = 0; j < Psi_II_approach_.cols(); ++j){
+                    if(Psi_II_approach_.coeff(i,j) > maxPsi){
+                        maxPsi = Psi_II_approach_.coeff(i,j); 
+                    }
+                    if(std::isnan(Psi_II_approach_.coeff(i,j)))
+                        std::cout << "avvistati nana in Psi_II_approach_!!" << std::endl; 
+                }
+            }
+            double maxPsiTD = 0.; 
+            for(int i = 0; i < PsiTD_II_approach_.rows(); ++i){
+                for(int j = 0; j < PsiTD_II_approach_.cols(); ++j){
+                    if(PsiTD_II_approach_.coeff(i,j) > maxPsiTD){
+                        maxPsiTD = PsiTD_II_approach_.coeff(i,j); 
+                    }
+                    if(std::isnan(PsiTD_II_approach_.coeff(i,j)))
+                        std::cout << "avvistati nana in PsiTD_II_approach_!!" << std::endl; 
+                }
+            }
+
+            if(model().has_covariates()){
+                X_II_approach_.resize(num_unique_locs(), model().q());
+                count = 0; 
+                for(std::size_t i = 0; i < locs_.rows(); ++i) {
+                    if(unique_locs_flags_[i]){
+                        for(int j = 0; j < model().X().cols(); ++j){
+                            X_II_approach_(count,j) = model().X().coeff(i, j);
+                        }
+                        count ++;
+                    }
+
+                }
+
+                // check 
+                double max_X = 0.; 
+                for(int i = 0; i < X_II_approach_.rows(); ++i){
+                    for(int j = 0; j < X_II_approach_.cols(); ++j){
+                        if(X_II_approach_.coeff(i,j) > max_X){
+                            max_X = X_II_approach_.coeff(i,j); 
+                        }
+                        if(std::isnan(X_II_approach_.coeff(i,j)))
+                            std::cout << "avvistati nana in X_II_approach_!!" << std::endl; 
+                    }
+                }
+            }
+ 
+        }
+ 
     }
 
     // getters
     const SpMatrix<double>& Psi(not_nan) const { return Psi_; }
     const SpMatrix<double>& PsiTD(not_nan) const { return PsiTD_; }
+
+    // M 
+    const SpMatrix<double>& Psi_II_approach(not_nan) const { return Psi_II_approach_; }
+    const SpMatrix<double>& PsiTD_II_approach(not_nan) const {return PsiTD_II_approach_; }
+    const DMatrix<double>& X_II_approach() const {return X_II_approach_; }
+    const std::vector<bool>& unique_locs_flags() const { return unique_locs_flags_; }
+    // M 
+    const unsigned int num_unique_locs() const { 
+        unsigned int count = 0; 
+        for(auto idx = 0; idx < unique_locs_flags_.size(); ++idx){
+            if(unique_locs_flags_[idx] == 1){
+                count++; 
+            }
+        }
+        return count;
+    }
+
+
     int n_spatial_locs() const {
         return sampling_ == Sampling::mesh_nodes ? model().pde().n_dofs() : locs_.rows();
     }
     const DiagMatrix<double>& D() const { return D_; }
     DMatrix<double> locs() const { return sampling_ == Sampling::mesh_nodes ? model().pde().dof_coords() : locs_; }
-    // settters
+
+    // setters
     void set_spatial_locations(const DMatrix<double>& locs) {
         if (sampling_ == Sampling::mesh_nodes) { return; }   // avoid a useless copy
         locs_ = locs;
     }
     Sampling sampling() const { return sampling_; }
+    
 };
 
 }   // namespace models

@@ -36,7 +36,7 @@ struct RegressionModel__ {
     template <typename M>
     using fn_ptrs = fdapde::mem_fn_ptrs<
       &M::f, &M::beta, &M::g, &M::fitted, &M::W, &M::XtWX, &M::U, &M::V, &M::invXtWX, &M::invA, &M::q, &M::n_obs,
-      &M::norm, &M::y, &M::T, &M::lmbQ, &M::has_covariates, &M::nan_mask, &M::set_mask, &M::X>;
+      &M::norm, &M::y, &M::T, &M::lmbQ, &M::has_covariates, &M::nan_mask, &M::set_mask, &M::X, &M::lmbQ_II_approach, &M::invA_II_approach>;
     // interface implementation
     decltype(auto) f()       const { return invoke<const DVector<double>&   , 0>(*this); }
     decltype(auto) beta()    const { return invoke<const DVector<double>&   , 1>(*this); }
@@ -60,6 +60,12 @@ struct RegressionModel__ {
     decltype(auto) nan_mask() const { return invoke<const BinaryVector<Dynamic>&, 17>(*this); }
     decltype(auto) set_mask(const BinaryVector<Dynamic>& mask) { return invoke<void, 18>(*this, mask); }
     decltype(auto) X() const { return invoke<const DMatrix<double>&, 19>(*this); }
+    decltype(auto) lmbQ_II_approach(const DMatrix<double>& x) const { return invoke<DMatrix<double>, 20>(*this, x); }
+    // decltype(auto) gcv_2_approach() const { return invoke<const bool&, 20>(*this); }
+    decltype(auto) invA_II_approach() const { return invoke<const fdapde::SparseLU<SpMatrix<double>>&  , 21>(*this); }
+    decltype(auto) U_II_approach()       const { return invoke<const DMatrix<double>&   ,22>(*this); }
+    decltype(auto) V_II_approach()       const { return invoke<const DMatrix<double>&   , 23>(*this); }
+    decltype(auto) XtWX_II_approach()    const { return invoke<const DMatrix<double>&   , 24>(*this); }
 };
 
 template <typename RegularizationType>

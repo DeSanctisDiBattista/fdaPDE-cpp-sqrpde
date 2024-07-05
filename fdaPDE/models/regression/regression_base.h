@@ -40,9 +40,16 @@ class RegressionBase :
     public SamplingBase<Model> {
    protected:
     DiagMatrix<double> W_ {};   // diagonal matrix of weights (implements possible heteroscedasticity)
+    DiagMatrix<double> W_II_approach_ {};   // M 
     DMatrix<double> XtWX_ {};   // q x q dense matrix X^\top*W*X
+    DMatrix<double> XtWX_II_approach_ {};   // M 
     DMatrix<double> T_ {};      // T = \Psi^\top*Q*\Psi + P (required by GCV)
+    DMatrix<double> T_II_approach_ {};      // M
     Eigen::PartialPivLU<DMatrix<double>> invXtWX_ {};   // factorization of the dense q x q matrix XtWX_.
+    Eigen::PartialPivLU<DMatrix<double>> invXtWX_II_approach_ {};   // M 
+    SparseBlockMatrix<double, 2, 2> A_II_approach_ {};  
+    fdapde::SparseLU<SpMatrix<double>> invA_II_approach_;
+
     // missing data and masking logic
     BinaryVector<fdapde::Dynamic> nan_mask_;     // indicator function over missing observations
     BinaryVector<fdapde::Dynamic> y_mask_;       // discards i-th observation from the fitting if y_mask_[i] == true
@@ -53,10 +60,17 @@ class RegressionBase :
     DMatrix<double> U_;   // [\Psi^\top*D*W*X, 0]
     DMatrix<double> V_;   // [X^\top*W*\Psi,   0]
 
+    DMatrix<double> U_II_approach_;   // [\Psi^\top*D*W*X, 0]
+    DMatrix<double> V_II_approach_;   // [X^\top*W*\Psi,   0]
+
     // room for problem solution
     DVector<double> f_ {};      // estimate of the spatial field (1 x N vector)
     DVector<double> g_ {};      // PDE misfit
     DVector<double> beta_ {};   // estimate of the coefficient vector (1 x q vector)
+
+    // M 
+    bool gcv_2_approach_ = false;    // M: if you want to apply the second strategy for gcv with obs rip 
+
    public:
     using Base = typename select_regularization_base<Model, RegularizationType>::type;
     using Base::df_;                    // BlockFrame for problem's data storage
@@ -67,6 +81,11 @@ class RegressionBase :
     using SamplingBase<Model>::D;       // for areal sampling, matrix of subdomains measures, identity matrix otherwise
     using SamplingBase<Model>::Psi;     // matrix of spatial basis evaluation at locations p_1 ... p_n
     using SamplingBase<Model>::PsiTD;   // block \Psi^\top*D (not nan-corrected)
+    using SamplingBase<Model>::Psi_II_approach;     // M
+    using SamplingBase<Model>::PsiTD_II_approach;   // M
+    using SamplingBase<Model>::X_II_approach;   // M
+    using SamplingBase<Model>::unique_locs_flags;   // M
+    using SamplingBase<Model>::num_unique_locs;     // M 
     using Base::model;
 
     RegressionBase() = default;
@@ -86,8 +105,11 @@ class RegressionBase :
     }
     const DMatrix<double>& X() const { return df_.template get<double>(DESIGN_MATRIX_BLK); }   // covariates
     const DiagMatrix<double>& W() const { return W_; }                                         // observations' weights
+    const DiagMatrix<double>& W_II_approach() const { return W_II_approach_; }   
     const DMatrix<double>& XtWX() const { return XtWX_; }
     const Eigen::PartialPivLU<DMatrix<double>>& invXtWX() const { return invXtWX_; }
+    const DMatrix<double>& XtWX_II_approach() const { return XtWX_II_approach_; }  // M 
+    const Eigen::PartialPivLU<DMatrix<double>>& invXtWX_II_approach() const { return invXtWX_II_approach_; } // M 
     const DVector<double>& f() const { return f_; };         // estimate of spatial field
     const DVector<double>& g() const { return g_; };         // PDE misfit
     const DVector<double>& beta() const { return beta_; };   // estimate of regression coefficients
@@ -97,6 +119,9 @@ class RegressionBase :
     // getters to Woodbury decomposition matrices
     const DMatrix<double>& U() const { return U_; }
     const DMatrix<double>& V() const { return V_; }
+    const DMatrix<double>& U_II_approach() const { return U_II_approach_; }
+    const DMatrix<double>& V_II_approach() const { return V_II_approach_; }
+    const fdapde::SparseLU<SpMatrix<double>>& invA_II_approach() const { return invA_II_approach_; }
     // access to NaN corrected \Psi and \Psi^\top*D matrices
     const SpMatrix<double>& Psi() const { return !is_empty(B_) ? B_ : Psi(not_nan()); }
     auto PsiTD() const { return !is_empty(B_) ? B_.transpose() * D() : Psi(not_nan()).transpose() * D(); }
@@ -113,12 +138,27 @@ class RegressionBase :
     }
     // efficient left multiplication by matrix Q = W(I - X*(X^\top*W*X)^{-1}*X^\top*W)
     DMatrix<double> lmbQ(const DMatrix<double>& x) const {
-        if (!has_covariates()) return W_ * x;
+        if(!has_covariates()) {
+            return W_ * x;  
+        }
         DMatrix<double> v = X().transpose() * W_ * x;   // X^\top*W*x
         DMatrix<double> z = invXtWX_.solve(v);          // (X^\top*W*X)^{-1}*X^\top*W*x
         // compute W*x - W*X*z = W*x - (W*X*(X^\top*W*X)^{-1}*X^\top*W)*x = W(I - H)*x = Q*x
         return W_ * x - W_ * X() * z;
     }
+
+    // M 
+    DMatrix<double> lmbQ_II_approach(const DMatrix<double>& x) const {
+        if (!has_covariates()) {
+            std::cout << "lmbQ_II_approach: max(W_II_approach_)=" << W_II_approach_.diagonal().maxCoeff() << " min=" << W_II_approach_.diagonal().minCoeff() << std::endl; 
+            return W_II_approach_ * x;  
+        }
+        DMatrix<double> v = X_II_approach().transpose() * W_II_approach_ * x;   // X^\top*W*x
+        DMatrix<double> z = invXtWX_II_approach_.solve(v);          // (X^\top*W*X)^{-1}*X^\top*W*x
+        // compute W*x - W*X*z = W*x - (W*X*(X^\top*W*X)^{-1}*X^\top*W)*x = W(I - H)*x = Q*x
+        return W_II_approach_ * x - W_II_approach_ * X_II_approach() * z;
+    }
+
     // computes fitted values \hat y = \Psi*f_ + X*beta_
     DMatrix<double> fitted() const {
         fdapde_assert(!is_empty(f_));
@@ -150,6 +190,13 @@ class RegressionBase :
         T_ = PsiTD() * lmbQ(Psi()) + P();
         return T_;
     }
+    const DMatrix<double>& T_II_approach() {   // T = \Psi^\top*Q*\Psi + P
+        std::cout << "T_II_approach" << std::endl; 
+        T_II_approach_ = PsiTD_II_approach(not_nan())*lmbQ_II_approach(Psi_II_approach(not_nan())) + P();
+        return T_II_approach_;
+    }
+
+    
     // data dependent regression models' initialization logic
     void analyze_data() {
         // initialize empty masks
@@ -157,11 +204,12 @@ class RegressionBase :
         if (!nan_mask_.size()) nan_mask_.resize(Base::n_locs());
         // compute q x q dense matrix X^\top*W*X and its factorization
         if (has_weights() && df_.is_dirty(WEIGHTS_BLK)) {
-            W_ = df_.template get<double>(WEIGHTS_BLK).col(0).asDiagonal();
+            W_ = (1.0/n_obs())*df_.template get<double>(WEIGHTS_BLK).col(0).asDiagonal();
             model().runtime().set(runtime_status::require_W_update);
         } else if (is_empty(W_)) {
             // default to homoskedastic observations
-            W_ = DVector<double>::Ones(Base::n_locs()).asDiagonal();
+            W_ = (1.0/n_obs())*DVector<double>::Ones(Base::n_locs()).asDiagonal();
+            // M aggiunta costante a causa della rinormalizzazione della loss; 
         }
         // compute q x q dense matrix X^\top*W*X and its factorization
         if (has_covariates() && (df_.is_dirty(DESIGN_MATRIX_BLK) || df_.is_dirty(WEIGHTS_BLK))) {
@@ -182,12 +230,51 @@ class RegressionBase :
                 model().runtime().set(runtime_status::require_psi_correction);
             }
         }
+
         return;
     }
     // correct \Psi setting to zero rows corresponding to masked observations
     void correct_psi() {
         if (masked_obs().any()) B_ = (~masked_obs().repeat(1, n_basis())).select(Psi(not_nan()));
     }
+
+    // M 
+    const bool gcv_2_approach() const { 
+        return gcv_2_approach_; 
+    }; 
+    // M 
+    void gcv_2_approach_set(bool gcv_approach) { 
+        std::cout << "Setting second strategy GCV in Base class" << std::endl; 
+        std::cout << "boolean value = " << gcv_approach << std::endl; 
+        gcv_2_approach_ = gcv_approach; 
+    }; 
+    // M 
+    // NOTA: le quantità II_approach vengono usate solo nel gcv, non in fase di fitting 
+    void W_II_approach_set(DiagMatrix<double> diag_w){  
+        W_II_approach_ = (1.0/n_obs())*diag_w; 
+        // M aggiunta costante a causa della rinormalizzazione della loss; c'è sempre n_obs() 
+        //   anche nel caso di osservazioni ripetute 
+        
+    }
+    // M 
+    void XtWX_II_approach_set(DMatrix<double> XtWX_II_appr){ 
+        XtWX_II_approach_ = XtWX_II_appr; 
+        invXtWX_II_approach_ = XtWX_II_approach_.partialPivLu();
+    }
+    void invA_II_approach_set(){ 
+        A_II_approach_ = SparseBlockMatrix<double, 2, 2>(
+            -PsiTD_II_approach(not_nan()) * W_II_approach_ * Psi_II_approach(not_nan()), Base::lambda()[0] * Base::R1().transpose(),
+            Base::lambda()[0] * Base::R1(),      Base::lambda()[0] * Base::R0()            );
+            // nb: W_II_approach contiene già la costante di normalizzazione 
+        invA_II_approach_.compute(A_II_approach_);
+    }
+    void U_II_approach_set(){ 
+        U_II_approach_ = PsiTD_II_approach(not_nan()) * W_II_approach_ * X_II_approach(); 
+    }
+    void V_II_approach_set(){ 
+        V_II_approach_ = X_II_approach().transpose() * W_II_approach_ * Psi_II_approach(not_nan()); 
+    }
+    
 };
 
 }   // namespace models

@@ -43,7 +43,14 @@ template <typename RegularizationType> struct StatisticalModel__ { };
     decltype(auto) R1()      const { return invoke<const SpMatrix<double>&, 8>(*this); }                               \
     decltype(auto) u()       const { return invoke<const DMatrix<double>&, 9>(*this); }                                \
     decltype(auto) Psi()     const { return invoke<const SpMatrix<double>&, 10>(*this, not_nan()); }                   \
-    decltype(auto) PsiTD()   const { return invoke<const SpMatrix<double>&, 11>(*this, not_nan()); }
+    decltype(auto) PsiTD()   const { return invoke<const SpMatrix<double>&, 11>(*this, not_nan()); }                   \
+    decltype(auto) gcv_2_approach()   const { return invoke<bool, 12>(*this); }                       \
+    decltype(auto) T_II_approach()  { return invoke<const DMatrix<double>&, 13>(*this); }                   \
+    decltype(auto) PsiTD_II_approach() const { return invoke<const SpMatrix<double>&, 14>(*this, not_nan()); }              \
+    decltype(auto) Psi_II_approach() const { return invoke<const SpMatrix<double>&, 15>(*this, not_nan()); }                \
+    decltype(auto) W_II_approach() const { return invoke<const DiagMatrix<double>&, 16>(*this); }                \
+    decltype(auto) num_unique_locs() const { return invoke<const unsigned int, 17>(*this); }                     
+  
 
 #define BASE_MODEL_FN_PTRS                                                                                             \
     &M::init,     /* full model-stack initialization */                                                                \
@@ -58,7 +65,9 @@ template <typename RegularizationType> struct StatisticalModel__ { };
     &M::R1, /* discretization matrix of the differential operator L, possibly tensorized */                            \
     &M::u,  /* discretization of forcing term, possibly tensorized */                                                  \
     static_cast<const SpMatrix<double>& (SamplingBase<M>::*)(not_nan) const>(&M::Psi),  /* [\Psi]_ij = \psi_j(p_i) */  \
-    static_cast<const SpMatrix<double>& (SamplingBase<M>::*)(not_nan) const>(&M::PsiTD) /* \Psi^\top * D */
+    static_cast<const SpMatrix<double>& (SamplingBase<M>::*)(not_nan) const>(&M::PsiTD), /* \Psi^\top * D */            \
+    &M::gcv_2_approach, &M::T_II_approach, &M::PsiTD_II_approach, &M::Psi_II_approach, \
+     &M::W_II_approach, &M::num_unique_locs
 
 // penalty independent model interface
 template <> struct StatisticalModel__<void> {
@@ -73,8 +82,8 @@ template <> struct StatisticalModel__<void> {
       static_cast<DVector<double> (Base<M>::*)(int) const>(&M::lambda)>;        // dynamic-sized access to \lambda
     // interface implementation
     BASE_MODEL_ERASED_INTERFACE
-    void set_lambda(const DVector<double>& lambda) { invoke<void, 12>(*this, lambda); }
-    decltype(auto) lambda() const { return invoke<DVector<double>, 13>(*this, fdapde::Dynamic); }
+    void set_lambda(const DVector<double>& lambda) { invoke<void, 18>(*this, lambda); }
+    decltype(auto) lambda() const { return invoke<DVector<double>, 19>(*this, fdapde::Dynamic); }
 };
 
 // space-only statistical model interface
@@ -91,10 +100,10 @@ template <> struct StatisticalModel__<SpaceOnly> {
       static_cast<SVector<1> (Base<M>::*)() const>(&M::lambda),            // static-sized access to \lambda
       &M::set_spatial_locations>;   // sets spatial locations p_1, \ldots, p_n over \mathcal{D}
     BASE_MODEL_ERASED_INTERFACE
-    void set_lambda_D(double lambda_D) { invoke<void, 12>(*this, lambda_D); }
-    void set_lambda(const SVector<1>& lambda) { invoke<void, 13>(*this, lambda); }
-    SVector<1> lambda() const { return invoke<SVector<1>, 14>(*this); }
-    void set_spatial_locations(const DMatrix<double>& locs) { invoke<void, 15>(*this, locs); }
+    void set_lambda_D(double lambda_D) { invoke<void, 18>(*this, lambda_D); }
+    void set_lambda(const SVector<1>& lambda) { invoke<void, 19>(*this, lambda); }
+    SVector<1> lambda() const { return invoke<SVector<1>, 20>(*this); }
+    void set_spatial_locations(const DMatrix<double>& locs) { invoke<void, 21>(*this, locs); }
 };
 
 // space-time separable interface
@@ -113,12 +122,12 @@ template <> struct StatisticalModel__<SpaceTimeSeparable> {
       &M::set_spatial_locations,     // sets spatial locations p_1, \ldots, p_n over \mathcal{D}
       &M::set_temporal_locations>;   // sets temporal locations t_1, \ldots, t_m over T
     BASE_MODEL_ERASED_INTERFACE
-    void set_lambda_D(double lambda_D) { invoke<void, 12>(*this, lambda_D); }
-    void set_lambda_T(double lambda_T) { invoke<void, 13>(*this, lambda_T); }
-    void set_lambda(const SVector<2>& lambda) { invoke<void, 14>(*this, lambda); }
-    SVector<2> lambda() const { return invoke<SVector<2>, 15>(*this); }
-    void set_spatial_locations(const DMatrix<double>& locs) { invoke<void, 16>(*this, locs); }
-    void set_temporal_locations(const DMatrix<double>& locs) { invoke<void, 17>(*this, locs); }
+    void set_lambda_D(double lambda_D) { invoke<void, 18>(*this, lambda_D); }
+    void set_lambda_T(double lambda_T) { invoke<void, 19>(*this, lambda_T); }
+    void set_lambda(const SVector<2>& lambda) { invoke<void, 20>(*this, lambda); }
+    SVector<2> lambda() const { return invoke<SVector<2>, 21>(*this); }
+    void set_spatial_locations(const DMatrix<double>& locs) { invoke<void, 22>(*this, locs); }
+    void set_temporal_locations(const DMatrix<double>& locs) { invoke<void, 23>(*this, locs); }
 };
 
 // space-time parabolic interface
