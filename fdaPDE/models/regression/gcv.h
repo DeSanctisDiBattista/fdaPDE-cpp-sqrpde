@@ -134,13 +134,14 @@ class GCV {
 
         trace_debug.push_back(trS); 
 
+        double dor; 
         if(gcv_bool_approach_){               // M gcv for repeated observations
             std::cout << "GCV computation with unique locs..." << std::endl; 
-            double dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
+            dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
         } else{
             std::cout << "GCV computation with all locs..." << std::endl; 
             // GCV(\lambda) = n/((n - (q + Tr[S]))^2)*norm(y - \hat y)^2
-            double dor = model_.n_obs() - (model_.q() + trS);   // (n - (q + Tr[S])
+            dor = model_.n_obs() - (model_.q() + trS);   // (n - (q + Tr[S])
         }
         return (model_.norm(model_.fitted(), model_.y()) / std::pow(dor, 2)); // M 
 

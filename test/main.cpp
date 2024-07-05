@@ -10,8 +10,8 @@
 // #include "src/gcv_srpde_newton_test.cpp"
 // #include "src/kcv_srpde_test.cpp"
 
-// #include "src/gcv_qsrpde_test.cpp"
-// #include "src/gcv_qstrpde_test.cpp"
+//#include "src/gcv_qsrpde_test.cpp"
+//#include "src/gcv_qstrpde_test.cpp"
 #include "src/gcv_mqsrpde_test.cpp" 
 
 // // run 
@@ -20,8 +20,8 @@
 // #include "src/gsrpde_test.cpp"
 
 // #include "src/qsrpde_test.cpp"
-// #include "src/qstrpde_test.cpp"
-#include "src/mqsrpde_test.cpp"
+//#include "src/qstrpde_test.cpp"
+// s#include "src/mqsrpde_test.cpp"
 
 // // functional test suite
 // #include "src/fpca_test.cpp"

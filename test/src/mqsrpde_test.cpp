@@ -1807,7 +1807,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     bool single = true; 
     bool multiple = false;
     const double gamma0 = 1.;    // crossing penalty   
-    const std::string gcv_summary = "";    // "" "_II_appr"
+    const std::string gcv_summary = "_II_appr";    // "" "_II_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -1819,7 +1819,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
     
-    bool compute_rmse = true;
+    bool compute_rmse = false;
     bool compute_gcv = true;    
 
     const unsigned int n_sim = 15;
@@ -1832,10 +1832,6 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     auto L = -laplacian<FEM>();   
     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3, 1);
     PDE<Triangulation<2, 2>, decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
-
-
-
-
 
     for(auto sim = 1; sim <= n_sim; ++sim){
         std::cout << std::endl;

@@ -783,7 +783,7 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
     }
 
     // define spatial domain and regularizing PDE
-    MeshLoader<Triangulation<2, 2>> domain("mesh_lombardia_" + mesh_type);
+    MeshLoader<Triangulation<2, 2>> domain("mesh_lombardia_convex_hull");
 
     // import data and locs from files
     DMatrix<double> y; DMatrix<double> space_locs; DMatrix<double> X;  
@@ -954,20 +954,20 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
                 std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
 
                 // Save lambda sequence 
-                std::ofstream fileLambdaS(solutions_path + "/lambdas_seq_alpha_" + alpha_string + remove_loc + ".csv");
+                std::ofstream fileLambdaS(solutions_path + "/lambdas_seq_alpha_" + alpha_string + ".csv");
                 for(std::size_t i = 0; i < lambdas.size(); ++i) 
                     fileLambdaS << std::setprecision(16) << lambdas[i] << "\n"; 
                 fileLambdaS.close();
 
                 // Save lambda GCVopt for all alphas
-                std::ofstream fileLambdaoptS(solutions_path + "/lambdas_opt_alpha_" + alpha_string + remove_loc + ".csv");
+                std::ofstream fileLambdaoptS(solutions_path + "/lambdas_opt_alpha_" + alpha_string + ".csv");
                 if(fileLambdaoptS.is_open()){
                     fileLambdaoptS << std::setprecision(16) << best_lambda;
                     fileLambdaoptS.close();
                 }
 
                 // Save GCV 
-                std::ofstream fileGCV_scores(solutions_path + "/score_alpha_" + alpha_string + remove_loc + ".csv");
+                std::ofstream fileGCV_scores(solutions_path + "/score_alpha_" + alpha_string + ".csv");
                 for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
                     fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
                 fileGCV_scores.close();
@@ -1047,7 +1047,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
     std::cout << "solution path: " << solutions_path << std::endl;
 
     // define spatial domain and regularizing PDE
-    MeshLoader<Triangulation<2, 2>> domain("mesh_lombardia_" + mesh_type);
+    MeshLoader<Triangulation<2, 2>> domain("mesh_lombardia_convex_hull");
 
       // import data and locs from files
     DMatrix<double> y; DMatrix<double> space_locs; DMatrix<double> X;  
@@ -1150,7 +1150,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 model.set_spatial_locations(space_locs);
                 unsigned int alpha_int = alphas[idx]*100;  
                 double lambda; 
-                std::ifstream fileLambda(solutions_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + remove_loc + ".csv");
+                std::ifstream fileLambda(solutions_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + ".csv");
                 if(fileLambda.is_open()){
                     fileLambda >> lambda; 
                     fileLambda.close();
@@ -1167,7 +1167,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 // Save solution
                 DMatrix<double> computedF = model.f();
                 const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream filef(solutions_path + "/f_" + std::to_string(alpha_int) + remove_loc + ".csv");
+                std::ofstream filef(solutions_path + "/f_" + std::to_string(alpha_int) + ".csv");
                 if(filef.is_open()){
                     filef << computedF.format(CSVFormatf);
                     filef.close();
@@ -1175,7 +1175,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
 
                 DMatrix<double> computedG = model.g();
                 const static Eigen::IOFormat CSVFormatg(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream fileg(solutions_path + "/g_" + std::to_string(alpha_int) + remove_loc + ".csv");
+                std::ofstream fileg(solutions_path + "/g_" + std::to_string(alpha_int) + ".csv");
                 if(fileg.is_open()){
                     fileg << computedG.format(CSVFormatg);
                     fileg.close();
@@ -1183,7 +1183,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
 
                 DMatrix<double> computedFn = model.Psi()*model.f();
                 const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream filefn(solutions_path + "/fn_" + std::to_string(alpha_int) + remove_loc + ".csv");
+                std::ofstream filefn(solutions_path + "/fn_" + std::to_string(alpha_int) + ".csv");
                 if(filefn.is_open()){
                     filefn << computedFn.format(CSVFormatfn);
                     filefn.close();
@@ -1192,7 +1192,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 if(model_type == "parametric"){
                     DMatrix<double> computedBeta = model.beta(); 
                     const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filebeta(solutions_path + "/beta_" + std::to_string(alpha_int) + remove_loc + ".csv");
+                    std::ofstream filebeta(solutions_path + "/beta_" + std::to_string(alpha_int) + ".csv");
                     if(filebeta.is_open()){
                         filebeta << computedBeta.format(CSVFormatBeta);
                         filebeta.close();
@@ -1203,13 +1203,13 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 // Save Psi, R0 and R1 per l'inferenza per un solo alpha 
                 if(idx == 0){        
                     SpMatrix<double> Psi_mat = model.Psi(fdapde::models::not_nan());
-                    Eigen::saveMarket(Psi_mat, solutions_path + "/Psi" + remove_loc + ".mtx");
+                    Eigen::saveMarket(Psi_mat, solutions_path + "/Psi" + ".mtx");
 
                     SpMatrix<double> R0_mat = model.R0(); 
-                    Eigen::saveMarket(R0_mat, solutions_path + "/R0" + remove_loc + ".mtx");
+                    Eigen::saveMarket(R0_mat, solutions_path + "/R0" + ".mtx");
 
                     SpMatrix<double> R1_mat = model.R1(); 
-                    Eigen::saveMarket(R1_mat, solutions_path + "/R1" + remove_loc + ".mtx");
+                    Eigen::saveMarket(R1_mat, solutions_path + "/R1" + ".mtx");
  
                 }
                 

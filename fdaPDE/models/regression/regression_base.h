@@ -29,6 +29,7 @@
 #include "gcv.h"
 #include "stochastic_edf.h"
 using fdapde::core::BinaryVector;
+using fdapde::core::SparseBlockMatrix;
 
 namespace fdapde {
 namespace models {

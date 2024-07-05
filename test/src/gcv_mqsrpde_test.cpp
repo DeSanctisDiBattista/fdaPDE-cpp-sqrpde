@@ -1549,7 +1549,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // quantile parameters 
     std::vector<double> alphas = {0.5, 0.95};
 
-    const std::string gcv_summary = "";    // ""  "_II_appr"
+    const std::string gcv_summary = "_II_appr";    // ""  "_II_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -1562,7 +1562,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
-    bool compute_rmse = true;
+    bool compute_rmse = false;
     bool compute_gcv = true;    
 
     const unsigned int n_sim = 15;
@@ -1584,7 +1584,6 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     for(double x = -9.5; x <= -1.5; x += 0.1) lambdas_quantile.push_back(std::pow(10, x));
 
     double best_lambda; 
-
 
     // Simulations 
     for(auto sim = 1; sim <= n_sim; ++sim){
