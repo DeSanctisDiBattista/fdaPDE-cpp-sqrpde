@@ -2139,7 +2139,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                         if(compute_rmse){
                             std::cout << "-----RMSE computation-----" << std::endl; 
 
-                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/single_est" + diffusion_type; 
+                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/est" + diffusion_type; 
                             // RMSE
                             DMatrix<double> f_true = read_csv<double>(R_path + "/true/f" + alpha_string + "_true.csv");
 
