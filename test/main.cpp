@@ -21,7 +21,7 @@
 
 // #include "src/qsrpde_test.cpp"
 //#include "src/qstrpde_test.cpp"
-// s#include "src/mqsrpde_test.cpp"
+#include "src/mqsrpde_test.cpp"
 
 // // functional test suite
 // #include "src/fpca_test.cpp"

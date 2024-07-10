@@ -1775,11 +1775,11 @@ using fdapde::testing::read_csv;
 //    order FE:     1
 TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
 
-    bool mean_estimation = true;
+    bool mean_estimation = false;
     bool quantile_estimation = !mean_estimation;  
 
     bool corr = false; 
-    std::string test_str = "4";   // "4"
+    std::string test_str = "9";   // "4"
 
     std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
 
@@ -1791,9 +1791,19 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     std::string R_path; 
     std::string simulations_string = "sims"; 
 
-    if(mean_estimation)
+    if(mean_estimation){
+        // marco 
         R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_" + test_str;
 
+        // ilenia
+        // ... 
+    } else{
+        // marco
+        R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_rip_" + test_str;
+        
+        // ilenia
+        // ... 
+    }
 
     std::vector<unsigned int> max_reps = {10, 50};   // max number of repetitions 
     std::vector<std::string> data_types = {"data"};   // ATT: tolto data  
@@ -1805,9 +1815,11 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
     std::vector<double> alphas = {0.5, 0.95};
     bool single = true; 
-    bool multiple = false;
+    bool multiple = false;  // --> per ora non funzionano i path 
+
     const double gamma0 = 1.;    // crossing penalty   
-    const std::string gcv_summary = "_II_appr";    // "" "_II_appr"
+
+    const std::string gcv_summary = "";    // "" "_II_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -1819,7 +1831,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
     
-    bool compute_rmse = false;
+    bool compute_rmse = true;
     bool compute_gcv = true;    
 
     const unsigned int n_sim = 15;
@@ -1856,21 +1868,20 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
                     std::string data_path = R_path + "/" + data_type; 
                     DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
-                    std::cout << "locs size = " << loc.rows() << std::endl; 
+                    //std::cout << "locs size = " << loc.rows() << std::endl; 
 
                     DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
-                    std::cout << "size y in test =" << y.rows() << std::endl;
+                    //std::cout << "size y in test =" << y.rows() << std::endl;
 
                     BlockFrame<double, int> df;
                     df.insert(OBSERVATIONS_BLK, y);
-
 
                     if(mean_estimation){
 
                         std::cout << "------------------MEAN REGRESSION-----------------" << std::endl;
 
                         std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type;  
-                        std::cout << "gcv_path " << gcv_path << std::endl;
+                        // std::cout << "gcv_path " << gcv_path << std::endl;
                         std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                         if(compute_gcv){
                             std::cout << "------------------gcv selection-----------------" << std::endl;
@@ -1959,7 +1970,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                         std::cout << "------------------QUANTILE REGRESSION-----------------" << std::endl; 
                     
                         if(compute_gcv){
-                            std::cout << "------------------gcv computation-----------------" << std::endl;
+                            std::cout << "------------------run with gcv selected lambda-----------------" << std::endl;
 
                             for(auto smooth_type : smooth_types_quantile){
                                 const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
@@ -1970,7 +1981,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                         std::string alpha_string = std::to_string(alpha_int); 
 
                                         std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                        std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string;
+                                        std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/" + smooth_type + "/est" + diffusion_type;
                                         // Read lambda 
                                         double best_lambda;
                                         std::ifstream fileLambda(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
@@ -2071,7 +2082,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                     std::string alpha_string = std::to_string(alpha_int); 
 
                                     std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                    std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string;
+                                    std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string+ "/RMSE/est" + diffusion_type;
                                     // Read lambda 
                                     double best_lambda;
                                     std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + ".csv");
@@ -2173,10 +2184,10 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
                 std::string data_path = R_path + "/" + data_type; 
                 DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
-                std::cout << "locs size = " << loc.rows() << std::endl; 
+                //std::cout << "locs size = " << loc.rows() << std::endl; 
 
                 DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
-                std::cout << "size y in test =" << y.rows() << std::endl;
+                //std::cout << "size y in test =" << y.rows() << std::endl;
 
                 BlockFrame<double, int> df;
                 df.insert(OBSERVATIONS_BLK, y);
@@ -2275,7 +2286,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                     std::cout << "------------------QUANTILE REGRESSION-----------------" << std::endl; 
                 
                     if(compute_gcv){
-                        std::cout << "------------------gcv computation-----------------" << std::endl;
+                        std::cout << "------------------run with lambda selected in gcv computation-----------------" << std::endl;
 
                         for(auto smooth_type : smooth_types_quantile){
                             const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
@@ -2286,7 +2297,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                     std::string alpha_string = std::to_string(alpha_int); 
 
                                     std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                    std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string;
+                                    std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/" + smooth_type + "/est" + diffusion_type;
                                     // Read lambda 
                                     double best_lambda;
                                     std::ifstream fileLambda(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
@@ -2387,7 +2398,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                 std::string alpha_string = std::to_string(alpha_int); 
 
                                 std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string;
+                                std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/est" + diffusion_type;
                                 // Read lambda 
                                 double best_lambda;
                                 std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + ".csv");

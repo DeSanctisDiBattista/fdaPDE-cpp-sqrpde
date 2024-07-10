@@ -1512,11 +1512,11 @@ DMatrix<double> collapse_rows(DMatrix<double> m, std::vector<bool> unique_flags,
 //    order FE:     1
 TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
 
-    bool mean_estimation = true;    // false implies that QSRPDE is run!
+    bool mean_estimation = false;    // false implies that QSRPDE is run!
     bool quantile_estimation = !mean_estimation;  
 
     bool corr = false; 
-    std::string test_str = "4";   // "4"
+    std::string test_str = "9";   // "4"
 
     std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
 
@@ -1524,14 +1524,29 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     std::string R_path; 
     std::string simulations_string = "sims"; 
 
+    // for stocastich GCV 
+    std::size_t seed = 438172;
+    const unsigned int MC_run = 100; 
 
     std::vector<std::string> nxx_vec = {"13", "23", "39"}; 
     const std::string chosen_max_repetion = "10"; 
     const std::string chosen_nxx_loc = "13"; 
 
 
-    if(mean_estimation)
+    if(mean_estimation){
+        // marco 
         R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_" + test_str;
+
+        // ilenia
+        // ... 
+    } else{
+        // marco
+        R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_rip_" + test_str;
+        
+        // ilenia
+        // ... 
+    }
+        
 
 
     // data parameters
@@ -1549,7 +1564,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // quantile parameters 
     std::vector<double> alphas = {0.5, 0.95};
 
-    const std::string gcv_summary = "_II_appr";    // ""  "_II_appr"
+    const std::string gcv_summary = "";    // ""  "_II_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -1562,7 +1577,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
-    bool compute_rmse = false;
+    bool compute_rmse = true;
     bool compute_gcv = true;    
 
     const unsigned int n_sim = 15;
@@ -1649,7 +1664,13 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                 model_cv.init();
 
                                 // define GCV function and grid of \lambda_D values
-                                auto GCV = model_cv.gcv<ExactEDF>();  
+                                // std::cout << "Running EXACT GCV" << std::endl; 
+                                // auto GCV = model_cv.gcv<ExactEDF>();  
+
+
+                                std::cout << "Running STOCHASTIC GCV" << std::endl; 
+                                auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
+
 
                                 // optimize GCV
                                 Grid<fdapde::Dynamic> opt;
@@ -1771,7 +1792,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
                                     const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
 
-                                    std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                    std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/" + smooth_type + "/est" + diffusion_type; 
                                         
                                     QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
                                     model_cv.set_spatial_locations(loc);
@@ -1782,7 +1803,12 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                     model_cv.init();
 
                                     // define GCV function and grid of \lambda_D values
+                                    std::cout << "Running EXACT GCV" << std::endl; 
                                     auto GCV = model_cv.gcv<ExactEDF>();  
+
+
+                                    // std::cout << "Running STOCHASTIC GCV" << std::endl; 
+                                    // auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
 
                                     // optimize GCV
                                     Grid<fdapde::Dynamic> opt;
@@ -1825,9 +1851,9 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             if(compute_rmse){
                                 std::cout << "-----RMSE computation-----" << std::endl; 
 
-                                std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/est" + diffusion_type; 
                                 // RMSE
-                                DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
+                                DMatrix<double> f_true = read_csv<double>(R_path + "/true/f" + alpha_string + "_true.csv");
 
                                 std::vector<double> rmse_score; 
                                 rmse_score.resize(lambdas_quantile.size()); 
@@ -1857,20 +1883,20 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                 auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
                                 
                                 // Save lambda sequence 
-                                std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + ".csv");
+                                std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq.csv");
                                 for(std::size_t i = 0; i < lambdas.size(); ++i) 
                                     fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
                                 fileLambdaS_rmse.close();
 
                                 // Save lambda RMSEopt for all alphas
-                                std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + ".csv");
+                                std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt.csv");
                                 if(fileLambdaoptS_rmse.is_open()){
                                     fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
                                     fileLambdaoptS_rmse.close();
                                 }
 
                                 // Save score 
-                                std::ofstream fileRMSE_scores(rmse_path + "/score" + ".csv");
+                                std::ofstream fileRMSE_scores(rmse_path + "/score.csv");
                                 for(std::size_t i = 0; i < rmse_score.size(); ++i) 
                                     fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
                                 fileRMSE_scores.close();
@@ -1878,19 +1904,19 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             }        
                         }
 
-            }
+                    }
 
                 }
             } else{
-                std::cout << "in else" << std::endl; 
+                //std::cout << "in else" << std::endl; 
                 std::string nxx_loc = chosen_nxx_loc; 
 
                 std::string data_path = R_path + "/" + data_type; 
                 DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
-                std::cout << "locs size = " << loc.rows() << std::endl; 
+                //std::cout << "locs size = " << loc.rows() << std::endl; 
 
                 DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
-                std::cout << "size y in test =" << y.rows() << std::endl;
+                //std::cout << "size y in test =" << y.rows() << std::endl;
 
                 BlockFrame<double, int> df;
                 df.insert(OBSERVATIONS_BLK, y);
@@ -1925,7 +1951,13 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             model_cv.init();
 
                             // define GCV function and grid of \lambda_D values
-                            auto GCV = model_cv.gcv<ExactEDF>();  
+                            // std::cout << "Running EXACT GCV" << std::endl; 
+                            // auto GCV = model_cv.gcv<ExactEDF>();  
+
+
+                            std::cout << "Running STOCHASTIC GCV" << std::endl; 
+                            auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
+
 
                             // optimize GCV
                             Grid<fdapde::Dynamic> opt;
@@ -2047,7 +2079,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
                                 const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
 
-                                std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                                std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/" + smooth_type + "/est" + diffusion_type; 
                                     
                                 QSRPDE<SpaceOnly> model_cv(problem, Sampling::pointwise, alpha);
                                 model_cv.set_spatial_locations(loc);
@@ -2057,8 +2089,14 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                 model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
                                 model_cv.init();
 
-                                // define GCV function and grid of \lambda_D values
+                                //define GCV function and grid of \lambda_D values
+                                std::cout << "Running EXACT GCV" << std::endl; 
                                 auto GCV = model_cv.gcv<ExactEDF>();  
+
+
+                                // std::cout << "Running STOCHASTIC GCV" << std::endl; 
+                                // auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
+
 
                                 // optimize GCV
                                 Grid<fdapde::Dynamic> opt;
@@ -2101,9 +2139,9 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                         if(compute_rmse){
                             std::cout << "-----RMSE computation-----" << std::endl; 
 
-                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type + "/alpha_" + alpha_string; 
+                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string  + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/single_est" + diffusion_type; 
                             // RMSE
-                            DMatrix<double> f_true = read_csv<double>(R_path + "/true/f_true_" + alpha_string + ".csv");
+                            DMatrix<double> f_true = read_csv<double>(R_path + "/true/f" + alpha_string + "_true.csv");
 
                             std::vector<double> rmse_score; 
                             rmse_score.resize(lambdas_quantile.size()); 
@@ -2133,20 +2171,20 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             auto min_idx = std::distance(std::begin(rmse_score), std::min_element(std::begin(rmse_score), std::end(rmse_score))); 
                             
                             // Save lambda sequence 
-                            std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq" + ".csv");
+                            std::ofstream fileLambdaS_rmse(rmse_path + "/lambdas_seq.csv");
                             for(std::size_t i = 0; i < lambdas.size(); ++i) 
                                 fileLambdaS_rmse << std::setprecision(16) << lambdas[i] << "\n"; 
                             fileLambdaS_rmse.close();
 
                             // Save lambda RMSEopt for all alphas
-                            std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt" + ".csv");
+                            std::ofstream fileLambdaoptS_rmse(rmse_path + "/lambda_s_opt.csv");
                             if(fileLambdaoptS_rmse.is_open()){
                                 fileLambdaoptS_rmse << std::setprecision(16) << lambdas[min_idx]; ;
                                 fileLambdaoptS_rmse.close();
                             }
 
                             // Save score 
-                            std::ofstream fileRMSE_scores(rmse_path + "/score" + ".csv");
+                            std::ofstream fileRMSE_scores(rmse_path + "/score.csv");
                             for(std::size_t i = 0; i < rmse_score.size(); ++i) 
                                 fileRMSE_scores << std::setprecision(16) << rmse_score[i] << "\n"; 
                             fileRMSE_scores.close();
