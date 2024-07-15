@@ -1512,11 +1512,13 @@ DMatrix<double> collapse_rows(DMatrix<double> m, std::vector<bool> unique_flags,
 //    order FE:     1
 TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
 
-    bool mean_estimation = false;    // false implies that QSRPDE is run!
+    bool mean_estimation = true;    // false implies that QSRPDE is run!
     bool quantile_estimation = !mean_estimation;  
 
-    bool corr = false; 
-    std::string test_str = "9";   // "4"
+    bool corr = true; 
+    std::string AR_coeff = "0.5"; 
+
+    std::string test_str = "6";   // "4"
 
     std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
 
@@ -1528,17 +1530,19 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     std::size_t seed = 438172;
     const unsigned int MC_run = 100; 
 
-    std::vector<std::string> nxx_vec = {"13", "23", "39"}; 
+    std::vector<std::string> nxx_vec = {"13"}; 
     const std::string chosen_max_repetion = "10"; 
     const std::string chosen_nxx_loc = "13"; 
 
 
     if(mean_estimation){
+
         // marco 
         R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/srpde/Tests/Test_obs_ripetute_" + test_str;
 
         // ilenia
         // ... 
+
     } else{
         // marco
         R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/Magistrale/Anno_II_Semestre_II/Thesis_shared/models/multiple_quantiles/Tests/Test_rip_" + test_str;
@@ -1564,7 +1568,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // quantile parameters 
     std::vector<double> alphas = {0.5, 0.95};
 
-    const std::string gcv_summary = "";    // ""  "_II_appr"
+    const std::string gcv_summary = "_II_appr";    // ""  "_II_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -1577,7 +1581,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
-    bool compute_rmse = true;
+    bool compute_rmse = false;
     bool compute_gcv = true;    
 
     const unsigned int n_sim = 15;
@@ -1628,7 +1632,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                     DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
                     std::cout << "locs size = " << loc.rows() << std::endl; 
 
-                    DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+                    DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
                     std::cout << "size y in test =" << y.rows() << std::endl;
 
                     BlockFrame<double, int> df;
@@ -1653,7 +1657,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
                                 std::cout << "------------------gcv computation-----------------" << std::endl;
 
-                                std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+                                std::string gcv_path = data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
                                 std::cout << "gcv_path=" << gcv_path << std::endl;     
 
                                 SRPDE model_cv(problem, Sampling::pointwise);
@@ -1714,7 +1718,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                         if(compute_rmse){
                             std::cout << "------------------RMSE computation-----" << std::endl; 
 
-                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                            std::string rmse_path = data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                             // RMSE
                             DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
 
@@ -1915,7 +1919,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                 DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
                 //std::cout << "locs size = " << loc.rows() << std::endl; 
 
-                DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+                DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
                 //std::cout << "size y in test =" << y.rows() << std::endl;
 
                 BlockFrame<double, int> df;
@@ -1940,7 +1944,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
 
                             std::cout << "------------------gcv computation-----------------" << std::endl;
 
-                            std::string gcv_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
+                            std::string gcv_path = data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type; 
                             std::cout << "gcv_path=" << gcv_path << std::endl;     
 
                             SRPDE model_cv(problem, Sampling::pointwise);
@@ -2001,7 +2005,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                     if(compute_rmse){
                         std::cout << "------------------RMSE computation-----" << std::endl; 
 
-                        std::string rmse_path = data_path + "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                        std::string rmse_path = data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                         // RMSE
                         DMatrix<double> f_true = read_csv<double>(R_path + "/true/mean_true.csv");
 

@@ -167,27 +167,27 @@ template <typename Model> class SamplingBase {
             PsiTD_II_approach_.setFromTriplets(triplet_list_psiTD.begin(), triplet_list_psiTD.end());
             PsiTD_II_approach_.makeCompressed();
 
-            // check 
-            double maxPsi = 0.; 
-            for(int i = 0; i < Psi_II_approach_.rows(); ++i){
-                for(int j = 0; j < Psi_II_approach_.cols(); ++j){
-                    if(Psi_II_approach_.coeff(i,j) > maxPsi){
-                        maxPsi = Psi_II_approach_.coeff(i,j); 
-                    }
-                    if(std::isnan(Psi_II_approach_.coeff(i,j)))
-                        std::cout << "avvistati nana in Psi_II_approach_!!" << std::endl; 
-                }
-            }
-            double maxPsiTD = 0.; 
-            for(int i = 0; i < PsiTD_II_approach_.rows(); ++i){
-                for(int j = 0; j < PsiTD_II_approach_.cols(); ++j){
-                    if(PsiTD_II_approach_.coeff(i,j) > maxPsiTD){
-                        maxPsiTD = PsiTD_II_approach_.coeff(i,j); 
-                    }
-                    if(std::isnan(PsiTD_II_approach_.coeff(i,j)))
-                        std::cout << "avvistati nana in PsiTD_II_approach_!!" << std::endl; 
-                }
-            }
+            // // check 
+            // double maxPsi = 0.; 
+            // for(int i = 0; i < Psi_II_approach_.rows(); ++i){
+            //     for(int j = 0; j < Psi_II_approach_.cols(); ++j){
+            //         if(Psi_II_approach_.coeff(i,j) > maxPsi){
+            //             maxPsi = Psi_II_approach_.coeff(i,j); 
+            //         }
+            //         if(std::isnan(Psi_II_approach_.coeff(i,j)))
+            //             std::cout << "avvistati nana in Psi_II_approach_!!" << std::endl; 
+            //     }
+            // }
+            // double maxPsiTD = 0.; 
+            // for(int i = 0; i < PsiTD_II_approach_.rows(); ++i){
+            //     for(int j = 0; j < PsiTD_II_approach_.cols(); ++j){
+            //         if(PsiTD_II_approach_.coeff(i,j) > maxPsiTD){
+            //             maxPsiTD = PsiTD_II_approach_.coeff(i,j); 
+            //         }
+            //         if(std::isnan(PsiTD_II_approach_.coeff(i,j)))
+            //             std::cout << "avvistati nana in PsiTD_II_approach_!!" << std::endl; 
+            //     }
+            // }
 
             if(model().has_covariates()){
                 X_II_approach_.resize(num_unique_locs(), model().q());
