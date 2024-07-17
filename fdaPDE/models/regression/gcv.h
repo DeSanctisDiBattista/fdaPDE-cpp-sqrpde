@@ -41,12 +41,13 @@ class GCV {
     using MatrixType = DMatrix<double>;
     // type-erased wrapper for Tr[S] computation strategy
     struct EDFStrategy__ {
-        template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model, &M::S_get, &M::gcv_2_approach_set_trace>;
+        template <typename M> using fn_ptrs = fdapde::mem_fn_ptrs<&M::compute, &M::set_model, &M::S_get, &M::gcv_2_approach_set_trace, &M::gcv_4_approach_set_trace>;
         // forwardings
         decltype(auto) compute() { return fdapde::invoke<double, 0>(*this); }
         void set_model(const RegressionView<void>& model) { fdapde::invoke<void, 1>(*this, model); }
         decltype(auto) S_get() const { return fdapde::invoke<const DMatrix<double>&   , 2>(*this); }  // M 
         void gcv_2_approach_set_trace(const bool& approach) { return fdapde::invoke<void, 3>(*this, approach); }  // M
+        void gcv_4_approach_set_trace(const bool& approach) { return fdapde::invoke<void, 4>(*this, approach); }  // M
     };
 
     RegressionView<void> model_;
@@ -59,7 +60,8 @@ class GCV {
     std::vector<double> trace_debug;  // M debug
 
     // M 
-    bool gcv_bool_approach_ = false;    // M: if you want to apply the second strategy for gcv with obs rip 
+    bool gcv_bool_2approach_ = false;    // M: if you want to apply the second strategy for gcv with obs rip 
+    bool gcv_bool_4approach_ = false; 
 
     // analytical expression of gcv at \lambda
     //
@@ -81,7 +83,7 @@ class GCV {
         std::size_t n = model_.n_obs();   // number of observations
         double dor;                       // residual degrees of freedom
 
-        if(gcv_bool_approach_){               // M gcv for repeated observations
+        if(gcv_bool_2approach_ || gcv_bool_4approach_){               // M gcv for repeated observations
             std::cout << "gcv_impl with unique locs..." << std::endl; 
             dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
         } else{
@@ -103,9 +105,11 @@ class GCV {
     template <typename ModelType_, typename EDFStrategy_>
     GCV(const ModelType_& model, EDFStrategy_&& trS) : model_(model), trS_(trS), gcv_(this, &This::gcv_impl) {
         // set model pointer in edf computation strategy
-        gcv_bool_approach_ = model.gcv_2_approach(); 
+        gcv_bool_2approach_ = model.gcv_2_approach(); 
+        gcv_bool_4approach_ = model.gcv_4_approach(); 
         trS_.set_model(model_);
-        trS_.gcv_2_approach_set_trace(gcv_bool_approach_);
+        trS_.gcv_2_approach_set_trace(gcv_bool_2approach_);
+        trS_.gcv_4_approach_set_trace(gcv_bool_4approach_);
     }
     template <typename ModelType_> GCV(const ModelType_& model) : GCV(model, StochasticEDF()) { }
     GCV(const GCV& other) : model_(other.model_), trS_(other.trS_), gcv_(this, &This::gcv_impl) {
@@ -135,11 +139,11 @@ class GCV {
         trace_debug.push_back(trS); 
 
         double dor; 
-        if(gcv_bool_approach_){               // M gcv for repeated observations
-            std::cout << "GCV computation with unique locs..." << std::endl; 
+        if(gcv_bool_2approach_ || gcv_bool_4approach_){               // M gcv for repeated observations
+            std::cout << "GCV denominator computation with unique locs..." << std::endl; 
             dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
         } else{
-            std::cout << "GCV computation with all locs..." << std::endl; 
+            std::cout << "GCV denominator computation with all locs..." << std::endl; 
             // GCV(\lambda) = n/((n - (q + Tr[S]))^2)*norm(y - \hat y)^2
             dor = model_.n_obs() - (model_.q() + trS);   // (n - (q + Tr[S])
         }
@@ -152,7 +156,8 @@ class GCV {
         trS_ = trS;
 	if(model_) {
         trS_.set_model(model_);
-        trS_.gcv_2_approach_set_trace(gcv_bool_approach_);  // M 
+        trS_.gcv_2_approach_set_trace(gcv_bool_2approach_);  // M 
+        trS_.gcv_4_approach_set_trace(gcv_bool_4approach_);  // M 
     }
 	edfs_.clear(); gcvs_.clear(); cache_.clear();
     }
@@ -160,7 +165,8 @@ class GCV {
         model_ = model;
 	if(trS_){
         trS_.set_model(model_);
-        trS_.gcv_2_approach_set_trace(gcv_bool_approach_); // M 
+        trS_.gcv_2_approach_set_trace(gcv_bool_2approach_); // M 
+        trS_.gcv_4_approach_set_trace(gcv_bool_4approach_); // M 
     }
         edfs_.clear(); gcvs_.clear(); cache_.clear();
     }

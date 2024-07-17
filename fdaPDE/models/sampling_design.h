@@ -51,6 +51,8 @@ template <typename Model> class SamplingBase {
     DMatrix<double> locs_;         // matrix of spatial locations p_1, p2_, ... p_n, or subdomains D_1, D_2, ..., D_n
 
     std::vector<bool> unique_locs_flags_; // zeros identify repeated locations 
+    unsigned int num_unique_locs_ = 0;
+    DVector<double> num_obs_per_location_;  // number of observations in each location
 
     // for space-time models, perform a proper tensorization of matrix \Psi
     void tensorize_psi() {
@@ -123,12 +125,37 @@ template <typename Model> class SamplingBase {
         bool new_loc; 
         for(std::size_t i = 0; i < locs_.rows(); ++i) {
             if(i==0){
-                new_loc = true; 
+                new_loc = true;  
             } else{
                 new_loc = !( almost_equal(locs_.coeff(i,0), locs_.coeff(i-1,0)) && almost_equal(locs_.coeff(i,1), locs_.coeff(i-1,1)) ); 
             }
             unique_locs_flags_.push_back(new_loc);  
         }
+
+        // compute num_unique_locs_
+        if(num_unique_locs_ == 0){  // non ancora calcolato
+            for(auto idx = 0; idx < unique_locs_flags_.size(); ++idx){
+                if(unique_locs_flags_[idx] == 1){
+                    num_unique_locs_++; 
+                }
+            }
+        } 
+
+        num_obs_per_location_.resize(num_unique_locs_); 
+        unsigned int obs_counter = 1;  // because the first is skipped
+        unsigned int idx_counter = 0; 
+        for(auto idx = 1; idx < unique_locs_flags_.size(); ++idx){  // skip the first since always true
+            if(unique_locs_flags_[idx] == 1){
+                std::cout << "obs in loc " << idx_counter+1 << "=" << obs_counter << std::endl; 
+                num_obs_per_location_[idx_counter] = obs_counter; 
+                idx_counter++; 
+                obs_counter = 0;
+            } 
+            obs_counter++; 
+        }
+        std::cout << "obs in loc " << num_unique_locs_ << "=" << obs_counter << std::endl; 
+        num_obs_per_location_[num_unique_locs_-1] = obs_counter; 
+
 
         //compute the reduced Psi matrix in case of repeated observations
         if(num_unique_locs() != n_spatial_locs()){
@@ -228,15 +255,13 @@ template <typename Model> class SamplingBase {
     const SpMatrix<double>& PsiTD_II_approach(not_nan) const {return PsiTD_II_approach_; }
     const DMatrix<double>& X_II_approach() const {return X_II_approach_; }
     const std::vector<bool>& unique_locs_flags() const { return unique_locs_flags_; }
+
+    const DVector<double>& num_obs_per_location() const {return num_obs_per_location_; }
+
+
     // M 
     const unsigned int num_unique_locs() const { 
-        unsigned int count = 0; 
-        for(auto idx = 0; idx < unique_locs_flags_.size(); ++idx){
-            if(unique_locs_flags_[idx] == 1){
-                count++; 
-            }
-        }
-        return count;
+        return num_unique_locs_;
     }
 
 

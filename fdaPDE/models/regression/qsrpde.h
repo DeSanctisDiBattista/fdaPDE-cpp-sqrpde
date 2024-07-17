@@ -79,6 +79,11 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
             gcv_oss_rip_II_strategy = true; 
             Base::gcv_2_approach_set(true); 
         }
+        if(str == "IV"){
+            std::cout << "Fourth strategy set" << std::endl; 
+            gcv_oss_rip_IV_strategy = true; 
+            Base::gcv_4_approach_set(true); 
+        }
     }
 
     void init_model() { 
@@ -107,7 +112,7 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
         invA_ = fpirls_.solver().invA();
 
         // M 
-        if(Base::gcv_2_approach() && Base::num_unique_locs() != n_locs()){
+        if( (Base::gcv_2_approach() || Base::gcv_4_approach()) && Base::num_unique_locs() != n_locs()){
             std::cout << "Computing weigths for GCV II approach..." << std::endl; 
             // nb: calcoli ripresi da "fpirls_compute_step", che li fa ad ogni step di fpirls. Ma qui ci servono solo una volta, a convergenza di fpirls. 
 
@@ -246,9 +251,9 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
             result *= n_obs() / n_unique_obs; 
         } 
 
-        if(gcv_oss_rip_II_strategy){
+        if(gcv_oss_rip_II_strategy || gcv_oss_rip_IV_strategy){
 
-            std::cout << "Running GCV per obs ripetute (II approccio)" << std::endl;
+            std::cout << "Running GCV per obs ripetute (II-IV approccio)" << std::endl;
 
             DVector<double> fit_II_approach = skip_repeated_locs(op1);
             DVector<double> summary_vec = compute_summary_data(); 
@@ -258,7 +263,7 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
             }
         }
         
-        if(!gcv_oss_rip_I_strategy && !gcv_oss_rip_II_strategy){
+        if(!gcv_oss_rip_I_strategy && !gcv_oss_rip_II_strategy && !gcv_oss_rip_IV_strategy){
             for (int i = 0; i < n_locs(); ++i) {
                 if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
             }
@@ -361,6 +366,7 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
     bool gcv_oss_rip_I_strategy = false; 
     bool gcv_oss_rip_II_strategy = false; 
+    bool gcv_oss_rip_IV_strategy = false; 
 
     double eps_ = -1.0;   // pinball loss smoothing factor
     double pinball_loss(double x, double eps) const {   // quantile check function

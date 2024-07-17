@@ -29,11 +29,12 @@ class ExactEDF {
    private:
     RegressionView<void> model_;
     bool gcv_2_approach_ = false; // M 
+    bool gcv_4_approach_ = false; // M 
     // computes smoothing matrix S = Q*\Psi*T^{-1}*\Psi^T
     const DMatrix<double>& S() {
         // std::cout << "-----------------------EXACT GCV running-------------------------------" << std::endl; 
         // factorize matrix T
-
+        std::cout << "in exact edf: gcv_2_approach_=" << gcv_2_approach_ << " gcv_4_approach_="  << gcv_4_approach_ << std::endl; 
         if(gcv_2_approach_){   // NB: funziona solo nel caso NONparametrico (matrici di SMW non corrette) e space-only (maschere per NA obs non corrette)
             std::cout << "smoothing matrix computation with summarized locs" << std::endl; 
             invT_ = model_.T_II_approach().partialPivLu();
@@ -44,13 +45,26 @@ class ExactEDF {
             //std::cout << "max norm W= " << model_.W_II_approach().diagonal().maxCoeff() << std::endl; 
             S_ = model_.lmbQ_II_approach(model_.Psi_II_approach() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
             //std::cout << "max norm S= " << S_.maxCoeff() << std::endl; 
-        } else{
-            std::cout << "smoothing matrix computation with all locs" << std::endl; 
+        } 
+        if(gcv_4_approach_){
+            std::cout << "smoothing matrix computation with all locs BUT reduced" << std::endl;
+            invT_ = model_.T().partialPivLu();
+            DMatrix<double> E_ = model_.PsiTD_II_approach();    // need to cast to dense for PartialPivLU::solve()
+
+            // std::cout << "dim Psi_II_approach " << model_.Psi_II_approach().rows() << ";" << model_.Psi_II_approach().cols() << std::endl; 
+            // std::cout << "dim E_ " << E_.rows() << ";" << E_.cols() << std::endl; 
+            // std::cout << "dim  model_.T() " <<  model_.T().rows() << ";" <<  model_.T().cols() << std::endl; 
+
+            S_ = model_.lmbQ_II_approach(model_.Psi_II_approach() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
+            std::cout << "check dim S: " << S_.rows() << ";" << S_.cols() << std::endl; 
+        } 
+        if(!gcv_2_approach_ && !gcv_4_approach_){
+            std::cout << "smoothing matrix computation with all locs" << std::endl;
             invT_ = model_.T().partialPivLu();
             DMatrix<double> E_ = model_.PsiTD();    // need to cast to dense for PartialPivLU::solve()
             S_ = model_.lmbQ(model_.Psi() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
         }
-
+        
         return S_;
     };
    public:
@@ -66,9 +80,14 @@ class ExactEDF {
 
     // M 
     void gcv_2_approach_set_trace(bool gcv_approach) { 
-        std::cout << "Setting strategy GCV in exact_edf.h" << std::endl; 
+        std::cout << "Setting II strategy GCV in exact_edf.h" << std::endl; 
         std::cout << "boolean value = " << gcv_approach << std::endl; 
         gcv_2_approach_ = gcv_approach; 
+    }; 
+    void gcv_4_approach_set_trace(bool gcv_approach) { 
+        std::cout << "Setting IV strategy GCV in exact_edf.h" << std::endl; 
+        std::cout << "boolean value = " << gcv_approach << std::endl; 
+        gcv_4_approach_ = gcv_approach; 
     }; 
     
 };

@@ -44,7 +44,8 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
 
     bool gcv_oss_rip_I_strategy = false; 
     bool gcv_oss_rip_II_strategy = false; 
-
+    bool gcv_oss_rip_IV_strategy = false; 
+    
    public:
     IMPORT_REGRESSION_SYMBOLS
     using Base::lambda_D;   // smoothing parameter in space
@@ -105,14 +106,23 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
         g_ = sol.tail(n_basis());
 
         // M 
-        if(Base::gcv_2_approach() && Base::num_unique_locs() != n_locs()){
+        if((Base::gcv_2_approach() || Base::gcv_4_approach()) && Base::num_unique_locs() != n_locs()){
             std::cout << "Computing W in solve srpde for GCV II approach..." << std::endl; 
 
             // for(std::size_t i = 0; i < Base::num_unique_locs(); ++i){
             //     Base::W_II_approach_set(i, 1.0);   // identity matrix 
             // }  
-            Base::W_II_approach_set(DVector<double>::Ones(Base::num_unique_locs()).asDiagonal());  
+            if(Base::weight_obs() == "" || Base::weight_obs() == "2"){
+                std::cout << "setting normal W_II_approach" << std::endl; 
+                Base::W_II_approach_set(DVector<double>::Ones(Base::num_unique_locs()).asDiagonal());  
+            }
+            if(Base::weight_obs() == "1"){
+                //to have n_i / n* in the smoothing matrix computation
+                std::cout << "setting W_II_approach with n_i factor" << std::endl; 
+                Base::W_II_approach_set(Base::num_obs_per_location().asDiagonal());  
+            }
 
+ 
             std::cout << "Computing invA in solve srpde for GCV II approach..." << std::endl; 
             Base::invA_II_approach_set(); 
             if(Base::has_covariates()) {
@@ -160,6 +170,11 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
             std::cout << "Second strategy set" << std::endl; 
             gcv_oss_rip_II_strategy = true; 
             Base::gcv_2_approach_set(true); 
+        }
+        if(str == "IV"){
+            std::cout << "Fourth strategy set" << std::endl; 
+            gcv_oss_rip_IV_strategy = true; 
+            Base::gcv_4_approach_set(true); 
         }
     }
 

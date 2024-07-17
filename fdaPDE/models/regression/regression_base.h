@@ -71,6 +71,8 @@ class RegressionBase :
 
     // M 
     bool gcv_2_approach_ = false;    // M: if you want to apply the second strategy for gcv with obs rip 
+    bool gcv_4_approach_ = false;    // M: if you want to apply the fourth strategy for gcv with obs rip 
+    std::string weight_obs_ = "";      // M: whether to account for the number of observations in the tr(S) computation
 
    public:
     using Base = typename select_regularization_base<Model, RegularizationType>::type;
@@ -193,7 +195,13 @@ class RegressionBase :
     }
     const DMatrix<double>& T_II_approach() {   // T = \Psi^\top*Q*\Psi + P
         std::cout << "T_II_approach" << std::endl; 
-        T_II_approach_ = PsiTD_II_approach(not_nan())*lmbQ_II_approach(Psi_II_approach(not_nan())) + P();
+        if(weight_obs() == "2"){
+            auto diag_vec = DVector<double>::Ones(num_unique_locs()).asDiagonal(); 
+            T_II_approach_ = PsiTD_II_approach(not_nan())*diag_vec*lmbQ_II_approach(Psi_II_approach(not_nan())) + P();
+        } else{
+            T_II_approach_ = PsiTD_II_approach(not_nan())*lmbQ_II_approach(Psi_II_approach(not_nan())) + P();
+        }
+        
         return T_II_approach_;
     }
 
@@ -249,6 +257,30 @@ class RegressionBase :
         std::cout << "boolean value = " << gcv_approach << std::endl; 
         gcv_2_approach_ = gcv_approach; 
     }; 
+
+    // M 
+    const bool gcv_4_approach() const { 
+        return gcv_4_approach_; 
+    }; 
+    // M 
+    void gcv_4_approach_set(bool gcv_approach) { 
+        std::cout << "Setting fourth strategy GCV in Base class" << std::endl; 
+        std::cout << "boolean value = " << gcv_approach << std::endl; 
+        gcv_4_approach_ = gcv_approach; 
+    }; 
+
+    // M 
+    const std::string weight_obs() const { 
+        return weight_obs_; 
+    }; 
+    // M 
+    void weight_obs_set(std::string value) { 
+        std::cout << "Setting  weight obs in Base class" << std::endl; 
+        std::cout << "string value = " << value << std::endl; 
+        weight_obs_ = value; 
+    }
+
+
     // M 
     // NOTA: le quantità II_approach vengono usate solo nel gcv, non in fase di fitting 
     void W_II_approach_set(DiagMatrix<double> diag_w){  
