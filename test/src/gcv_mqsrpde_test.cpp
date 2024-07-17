@@ -1516,7 +1516,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     bool quantile_estimation = !mean_estimation;  
 
     bool corr = true; 
-    std::string AR_coeff = "0.5"; 
+    std::string AR_coeff = "0.9"; 
 
     std::string test_str = "6";   // "4"
 
@@ -1568,13 +1568,27 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // quantile parameters 
     std::vector<double> alphas = {0.5, 0.95};
 
-    const std::string gcv_summary = "_II_appr";    // ""  "_II_appr"
+    std::string gcv_summary = "_IV_appr";    // ""  "_II_appr" "_IV_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
-        strategy_gcv = "II";  
+        strategy_gcv = "II"; 
+    if(gcv_summary == "_IV_appr")
+        strategy_gcv = "IV";   
     if(gcv_summary == "")
         strategy_gcv = "";   
+
+    std::string weighting_obs = "";    // "" "1" "2"
+    if(weighting_obs == "1" && gcv_summary == "_II_appr")
+        gcv_summary = gcv_summary + "_w"; 
+    if(weighting_obs == "2" && gcv_summary == "_II_appr")
+        gcv_summary = gcv_summary + "_w2"; 
+
+    if(weighting_obs != "" && gcv_summary != "_II_appr"){
+        std::cout << "you want to weight the observations but you have not set the II approach ! " << std::endl; 
+    }
+
+
         
     std::cout << "strategy_gcv=" << strategy_gcv << std::endl; 
 
@@ -1663,17 +1677,18 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                 SRPDE model_cv(problem, Sampling::pointwise);
                                 model_cv.set_spatial_locations(loc);
                                 model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+                                model_cv.weight_obs_set(weighting_obs); 
 
                                 model_cv.set_data(df);
                                 model_cv.init();
 
                                 // define GCV function and grid of \lambda_D values
-                                // std::cout << "Running EXACT GCV" << std::endl; 
-                                // auto GCV = model_cv.gcv<ExactEDF>();  
+                                std::cout << "Running EXACT GCV" << std::endl; 
+                                auto GCV = model_cv.gcv<ExactEDF>();  
 
 
-                                std::cout << "Running STOCHASTIC GCV" << std::endl; 
-                                auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
+                                // std::cout << "Running STOCHASTIC GCV" << std::endl; 
+                                // auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
 
 
                                 // optimize GCV
@@ -1804,6 +1819,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                                     
                                     model_cv.set_data(df);
                                     model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+                                    model_cv.weight_obs_set(weighting_obs); 
                                     model_cv.init();
 
                                     // define GCV function and grid of \lambda_D values
@@ -1950,17 +1966,18 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                             SRPDE model_cv(problem, Sampling::pointwise);
                             model_cv.set_spatial_locations(loc);
                             model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+                            model_cv.weight_obs_set(weighting_obs); 
 
                             model_cv.set_data(df);
                             model_cv.init();
 
                             // define GCV function and grid of \lambda_D values
-                            // std::cout << "Running EXACT GCV" << std::endl; 
-                            // auto GCV = model_cv.gcv<ExactEDF>();  
+                            std::cout << "Running EXACT GCV" << std::endl; 
+                            auto GCV = model_cv.gcv<ExactEDF>();  
 
 
-                            std::cout << "Running STOCHASTIC GCV" << std::endl; 
-                            auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
+                            // std::cout << "Running STOCHASTIC GCV" << std::endl; 
+                            // auto GCV = model_cv.gcv<StochasticEDF>(MC_run, seed);
 
 
                             // optimize GCV
@@ -2091,6 +2108,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                                                 
                                 model_cv.set_data(df);
                                 model_cv.gcv_oss_rip_strategy_set(strategy_gcv_tmp); 
+                                model_cv.weight_obs_set(weighting_obs); 
                                 model_cv.init();
 
                                 //define GCV function and grid of \lambda_D values
