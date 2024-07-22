@@ -42,8 +42,9 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
     DVector<double> b_ {};                         // right hand side of problem's linear system (1 x 2N vector)
     SpMatrix<double> P1_{}; // ficticious 
 
-    bool gcv_oss_rip_I_strategy = false; 
+    bool gcv_oss_rip_I_strategy = true; 
     bool gcv_oss_rip_II_strategy = false; 
+    bool gcv_oss_rip_III_strategy = false; 
     bool gcv_oss_rip_IV_strategy = false; 
     
    public:
@@ -106,31 +107,23 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
         g_ = sol.tail(n_basis());
 
         // M 
-        if((Base::gcv_2_approach() || Base::gcv_4_approach()) && Base::num_unique_locs() != n_locs()){
-            std::cout << "Computing W in solve srpde for GCV II approach..." << std::endl; 
+        if(!gcv_oss_rip_I_strategy){
+            std::cout << "Computing W in solve srpde for GCV reduced..." << std::endl; 
 
             // for(std::size_t i = 0; i < Base::num_unique_locs(); ++i){
-            //     Base::W_II_approach_set(i, 1.0);   // identity matrix 
+            //     Base::W_reduced_set(i, 1.0);   // identity matrix 
             // }  
-            if(Base::weight_obs() == "" || Base::weight_obs() == "2"){
-                std::cout << "setting normal W_II_approach" << std::endl; 
-                Base::W_II_approach_set(DVector<double>::Ones(Base::num_unique_locs()).asDiagonal());  
-            }
-            if(Base::weight_obs() == "1"){
-                //to have n_i / n* in the smoothing matrix computation
-                std::cout << "setting W_II_approach with n_i factor" << std::endl; 
-                Base::W_II_approach_set(Base::num_obs_per_location().asDiagonal());  
-            }
-
- 
-            std::cout << "Computing invA in solve srpde for GCV II approach..." << std::endl; 
-            Base::invA_II_approach_set(); 
+            std::cout << "setting normal W_reduced" << std::endl; 
+            Base::W_reduced_set(DVector<double>::Ones(Base::num_unique_locs()).asDiagonal());  
+            
+            std::cout << "Computing invA in solve srpde for GCV reduced..." << std::endl; 
+            Base::invA_reduced_set(); 
             if(Base::has_covariates()) {
-                // Set XtWX_II_approach_set and its inverse in base class 
-                std::cout << "in solve, setting XtWX, U, V II approach" << std::endl; 
-                Base::XtWX_II_approach_set(X_II_approach().transpose()*W_II_approach()*X_II_approach()); 
-                Base::U_II_approach_set(); 
-                Base::V_II_approach_set(); 
+                // Set XtWX_reduced_set and its inverse in base class 
+                std::cout << "in solve, setting XtWX, U, V reduced" << std::endl; 
+                Base::XtWX_reduced_set(X_reduced().transpose()*W_reduced()*X_reduced()); 
+                Base::U_reduced_set(); 
+                Base::V_reduced_set(); 
             }
         } 
 
@@ -141,41 +134,28 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
     double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const { 
         
         double result = 0.; 
-        if( gcv_oss_rip_II_strategy && (num_unique_locs()!=n_spatial_locs()) ){
-
-            std::cout << "Running GCV per obs ripetute (II approccio) in SRPDE" << std::endl;
-
-            DVector<double> fit_II_approach = skip_repeated_locs(op1);
+        if(!gcv_oss_rip_I_strategy){
+            std::cout << "Running GCV per obs ripetute in SRPDE" << std::endl; 
+            DVector<double> fit_reduced = skip_repeated_locs(op1);
             DVector<double> summary_vec = compute_summary_data(); 
-            result = (fit_II_approach - summary_vec).squaredNorm();  
+            result = (fit_reduced - summary_vec).squaredNorm();  
+        } else{
+            std::cout << "Running GCV per obs uniche in SRPDE" << std::endl;
+            result = (op1 - op2).squaredNorm();  
         }
         
-        if(!gcv_oss_rip_I_strategy && !gcv_oss_rip_II_strategy){
-            std::cout << "Running GCV per obs uniche in SRPDE" << std::endl;
-            return (op1 - op2).squaredNorm();      
-        }    
-
-
-        return result;   
-        
+        return result;    
     }
     
     // M 
     void gcv_oss_rip_strategy_set(const std::string str){
-        if(str == "I"){
-            std::cout << "First strategy set" << std::endl; 
-            gcv_oss_rip_I_strategy = true; 
-        }
-        if(str == "II"){
-            std::cout << "Second strategy set" << std::endl; 
-            gcv_oss_rip_II_strategy = true; 
-            Base::gcv_2_approach_set(true); 
-        }
-        if(str == "IV"){
-            std::cout << "Fourth strategy set" << std::endl; 
-            gcv_oss_rip_IV_strategy = true; 
-            Base::gcv_4_approach_set(true); 
-        }
+
+        gcv_oss_rip_I_strategy = (str=="I"); 
+        gcv_oss_rip_II_strategy = (str=="II"); 
+        gcv_oss_rip_III_strategy = (str=="III"); 
+        gcv_oss_rip_IV_strategy = (str=="IV"); 
+
+        Base::gcv_approach_set(str); 
     }
 
 

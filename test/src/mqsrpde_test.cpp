@@ -1821,24 +1821,17 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
     const double gamma0 = 1.;    // crossing penalty   
 
-    std::string gcv_summary = "_IV_appr";    // "" "_II_appr" "_IV_appr"
-    std::string weighting_obs = "";    // "" "1" "2"
-    if(weighting_obs == "1" && gcv_summary == "_II_appr")
-        gcv_summary = gcv_summary + "_w"; 
-    if(weighting_obs == "2" && gcv_summary == "_II_appr")
-        gcv_summary = gcv_summary + "_w2"; 
-
-    if(weighting_obs != "" && gcv_summary != "_II_appr"){
-        std::cout << "you want to weight the observations but you have not set the II approach ! " << std::endl; 
-    }
+    std::string gcv_summary = "_I_appr";    // "_I_appr"  "_II_appr" "_III_appr" "_IV_appr"
 
     std::string strategy_gcv; 
+    if(gcv_summary == "_I_appr")
+        strategy_gcv = "I";   
     if(gcv_summary == "_II_appr")
-        strategy_gcv = "II";  
+        strategy_gcv = "II"; 
+    if(gcv_summary == "_III_appr")
+        strategy_gcv = "III"; 
     if(gcv_summary == "_IV_appr")
-        strategy_gcv = "IV";  
-    if(gcv_summary == "")
-        strategy_gcv = "";   
+        strategy_gcv = "IV";   
 
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
@@ -1868,8 +1861,8 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
             std::string gcv_summary_tmp; 
             std::string strategy_gcv_tmp; 
             if(data_type == "data"){
-                gcv_summary_tmp = ""; 
-                strategy_gcv_tmp = ""; 
+                gcv_summary_tmp = "_I_appr"; 
+                strategy_gcv_tmp = "I"; 
             } else{
                 gcv_summary_tmp = gcv_summary; 
                 strategy_gcv_tmp = strategy_gcv; 

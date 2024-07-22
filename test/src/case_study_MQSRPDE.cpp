@@ -686,7 +686,7 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
     const std::string day_chosen = "11"; 
     const std::string K = "5";    // maximum number of repeated observations per each location 
 
-    const std::string eps_string = "1e-1.5";   // "1e-0.25" "0"  "1e+0" "1e+0.5" "1e+1" "1e+2"
+    const std::string eps_string = "1e+0";   // ATT cambiato da -1.5 a -1
 
     const std::string pde_type = "";  // ""  "b"     ---> ATT modifica giù
     const std::string u_string = "1"; 
@@ -702,16 +702,18 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
     const std::string covariate_type = "dens.new_log.el.orig";   // dens.new_log.el.orig: too long path otherwise
 
 
-    std::string est_type = "quantile";    // mean quantile
+    std::string est_type = "mean";    // mean quantile
     std::vector<double> alphas = {//0.01, 0.02, 0.03, 0.04, 0.05, 0.10, 0.15, 0.20, 0.25, 
-                                  //0.30, 0.35, 0.40, 0.45, 0.5, 0.55, 0.60, 0.65, 0.70, 
+                                  //0.30, 0.35, 0.40, 0.45,
+                                  0.5,
+                                  //0.55, 0.60, 0.65, 0.70, 
                                   //0.75, 0.80, 0.85, 
                                   0.90//,
                                   //0.95, 0.96, 0.97, 0.98, 0.99
                                   };
 
                                   
-    std::string gcv_summary = "_IV_appr";    // ""  "_II_appr" "_IV_appr"
+    std::string gcv_summary = "_II_appr";    // ""  "_II_appr" "_IV_appr"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -721,7 +723,7 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
     if(gcv_summary == "")
         strategy_gcv = "";   
 
-    std::string weighting_obs = "";    // "" "1" "2"
+    std::string weighting_obs = "2";    // "" "1" "2"
     if(weighting_obs == "1" && gcv_summary == "_II_appr")
         gcv_summary = gcv_summary + "_w"; 
     if(weighting_obs == "2" && gcv_summary == "_II_appr")
@@ -762,7 +764,7 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
 
         if(est_type == "quantile"){
             if(model_type == "nonparam"){
-                solutions_path = path + "/results/MQSRPDE/obs_rip" + K + "/" + month + "/day_" + day_chosen + "/" + model_type + "/eps_" + eps_string;
+                solutions_path = path + "/results/MQSRPDE/obs_rip" + K + "/" + month + "/day_" + day_chosen + "/" + model_type;  // + "/eps_" + eps_string;
             } else{
                 solutions_path = path + "/results/MQSRPDE/obs_rip" + K + "/" + month + "/day_" + day_chosen + "/" + model_type + "/" + covariate_type + "/eps_" + eps_string;
             }
@@ -843,9 +845,9 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
     if(est_type == "quantile"){
         for(double x = -6.8; x <= 0.0; x += 0.1) lambdas_1_5.push_back(std::pow(10, x)); 
         for(double x = -6.0; x <= 0.0; x += 0.1) lambdas_10_25.push_back(std::pow(10, x));
-        for(double x = -5.5; x <= 1.0; x += 0.1) lambdas_30_70.push_back(std::pow(10, x)); 
-        for(double x = -6.5; x <= -1.0; x += 0.1) lambdas_75_90.push_back(std::pow(10, x)); 
-        for(double x = -6.5; x <= -1.5; x += 0.1) lambdas_95_99.push_back(std::pow(10, x));
+        for(double x = -8.5; x <= -4.5; x += 0.1) lambdas_30_70.push_back(std::pow(10, x)); 
+        for(double x = -9.0; x <= -6.0; x += 0.1) lambdas_75_90.push_back(std::pow(10, x)); 
+        for(double x = -9.0; x <= -6.0; x += 0.1) lambdas_95_99.push_back(std::pow(10, x));
     }
 
     // define spatial domain and regularizing PDE
@@ -1008,6 +1010,9 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
                 }
 
                 // set model's data
+                if(eps_string == "1e+0"){
+                    model_gcv.set_eps_power(0.); 
+                }
                 if(eps_string == "1e-0.5"){
                     model_gcv.set_eps_power(-0.5); 
                 }
@@ -1046,20 +1051,20 @@ TEST(case_study_mqsrpde_gcv_obs_rip, NO2) {
                 std::cout << "Best lambda is: " << std::setprecision(16) << best_lambda << std::endl; 
 
                 // Save lambda sequence 
-                std::ofstream fileLambdaS(solutions_path + "/lambdas_seq_alpha_" + alpha_string + gcv_summary +  ".csv");
+                std::ofstream fileLambdaS(solutions_path + "/alp_" + std::to_string(alpha_int) + "/lambdas_seq" + gcv_summary +  ".csv");
                 for(std::size_t i = 0; i < lambdas.size(); ++i) 
                     fileLambdaS << std::setprecision(16) << lambdas[i] << "\n"; 
                 fileLambdaS.close();
 
                 // Save lambda GCVopt for all alphas
-                std::ofstream fileLambdaoptS(solutions_path + "/lambdas_opt_alpha_" + alpha_string + gcv_summary + ".csv");
+                std::ofstream fileLambdaoptS(solutions_path + "/alp_" + std::to_string(alpha_int) + "/lambdas_opt" + gcv_summary + ".csv");
                 if(fileLambdaoptS.is_open()){
                     fileLambdaoptS << std::setprecision(16) << best_lambda;
                     fileLambdaoptS.close();
                 }
 
                 // Save GCV 
-                std::ofstream fileGCV_scores(solutions_path + "/score_alpha_" + alpha_string + gcv_summary + ".csv");
+                std::ofstream fileGCV_scores(solutions_path + "/alp_" + std::to_string(alpha_int) + "/score" + gcv_summary + ".csv");
                 for(std::size_t i = 0; i < GCV.gcvs().size(); ++i) 
                     fileGCV_scores << std::setprecision(16) << std::sqrt(GCV.gcvs()[i]) << "\n"; 
                 fileGCV_scores.close();
@@ -1086,7 +1091,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
     const std::string K = "5";    // maximum number of repeated observations per each location 
 
 
-    const std::string eps_string = "1e-1.5";   // "1e-0.25" "0"  "1e+0" "1e+0.5" "1e+1" "1e+2"
+    const std::string eps_string = "1e+0";  
 
     const std::string pde_type = "";  // ""  "b"  ---> ATT modifica giù
     const std::string u_string = "1"; 
@@ -1099,7 +1104,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
 
     std::string est_type = "quantile";    // mean quantile
 
-    std::string gcv_summary = "_IV_appr";    // ""  "_II_appr" "_IV_appr" "_fix"
+    std::string gcv_summary = "_II_appr";    // ""  "_II_appr" "_IV_appr" "_fix"
 
     std::string strategy_gcv; 
     if(gcv_summary == "_II_appr")
@@ -1109,15 +1114,17 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
     if(gcv_summary == "")
         strategy_gcv = "";   
 
-    std::string weighting_obs = "";    // "" "1" "2"
+    std::string weighting_obs = "2";    // "" "1" "2"
+    if(weighting_obs != "" && gcv_summary != "_II_appr"){
+        std::cout << "you want to weight the observations but you have not set the II approach ! " << std::endl; 
+    }
+
     if(weighting_obs == "1" && gcv_summary == "_II_appr")
         gcv_summary = gcv_summary + "_w"; 
     if(weighting_obs == "2" && gcv_summary == "_II_appr")
         gcv_summary = gcv_summary + "_w2"; 
 
-    if(weighting_obs != "" && gcv_summary != "_II_appr"){
-        std::cout << "you want to weight the observations but you have not set the II approach ! " << std::endl; 
-    }
+
     std::vector<double> lambdas_forced; 
     std::vector<double> powers = {-6.0, -5.5, -5.0, -4.5, -4.0, -3.5, -3.0, -2.5, -2.0, -1.5, -1.0}; // {-6.0, -5.5, -5.0, -4.5, -4.0, -3.5, -3.0}; 
     if(gcv_summary == "_fix"){
@@ -1133,7 +1140,9 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
     const unsigned int max_it_convergence_loop = 60; 
 
     std::vector<double> alphas = {//0.01, 0.02, 0.03, 0.04, 0.05, 0.10, 0.15, 0.20, 0.25, 
-                                  //0.30, 0.35, 0.40, 0.45, 0.5, 0.55, 0.60, 0.65, 0.70, 
+                                  //0.30, 0.35, 0.40, 0.45,
+                                   0.5, 
+                                   //0.55, 0.60, 0.65, 0.70, 
                                   //0.75, 0.80, 0.85, 
                                   0.90//,
                                   //0.95, 0.96, 0.97, 0.98, 0.99
@@ -1167,7 +1176,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
 
         if(est_type == "quantile"){
             if(model_type == "nonparam"){
-                solutions_path = path + "/results/MQSRPDE/obs_rip" + K + "/" + month + "/day_" + day_chosen + "/" + model_type + "/eps_" + eps_string;
+                solutions_path = path + "/results/MQSRPDE/obs_rip" + K + "/" + month + "/day_" + day_chosen + "/" + model_type; // + "/eps_" + eps_string;
             } else{
                 solutions_path = path + "/results/MQSRPDE/obs_rip" + K + "/" + month + "/day_" + day_chosen + "/" + model_type + "/" + covariate_type + "/eps_" + eps_string;
             }
@@ -1377,7 +1386,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 model.set_spatial_locations(space_locs);
                 unsigned int alpha_int = alphas[idx]*100;  
                 double lambda; 
-                std::ifstream fileLambda(solutions_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + gcv_summary + ".csv");
+                std::ifstream fileLambda(solutions_path + "/alp_" + std::to_string(alpha_int)  + "/lambdas_opt" + gcv_summary + ".csv");
                 if(fileLambda.is_open()){
                     fileLambda >> lambda; 
                     fileLambda.close();
@@ -1394,7 +1403,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 // Save solution
                 DMatrix<double> computedF = model.f();
                 const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream filef(solutions_path + "/f_" + std::to_string(alpha_int) + gcv_summary + ".csv");
+                std::ofstream filef(solutions_path + "/alp_" + std::to_string(alpha_int) + "/f" + gcv_summary + ".csv");
                 if(filef.is_open()){
                     filef << computedF.format(CSVFormatf);
                     filef.close();
@@ -1402,7 +1411,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
 
                 DMatrix<double> computedG = model.g();
                 const static Eigen::IOFormat CSVFormatg(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream fileg(solutions_path + "/g_" + std::to_string(alpha_int) + gcv_summary + ".csv");
+                std::ofstream fileg(solutions_path + "/alp_" + std::to_string(alpha_int)  + "/g" + gcv_summary + ".csv");
                 if(fileg.is_open()){
                     fileg << computedG.format(CSVFormatg);
                     fileg.close();
@@ -1410,7 +1419,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
 
                 DMatrix<double> computedFn = model.Psi()*model.f();
                 const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream filefn(solutions_path + "/fn_" + std::to_string(alpha_int) + gcv_summary + ".csv");
+                std::ofstream filefn(solutions_path + "/alp_" + std::to_string(alpha_int) + "/fn" + gcv_summary + ".csv");
                 if(filefn.is_open()){
                     filefn << computedFn.format(CSVFormatfn);
                     filefn.close();
@@ -1419,7 +1428,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 if(model_type == "param"){
                     DMatrix<double> computedBeta = model.beta(); 
                     const static Eigen::IOFormat CSVFormatBeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filebeta(solutions_path + "/beta_" + std::to_string(alpha_int) + gcv_summary + ".csv");
+                    std::ofstream filebeta(solutions_path + "/alp_" + std::to_string(alpha_int) + "/beta" + gcv_summary + ".csv");
                     if(filebeta.is_open()){
                         filebeta << computedBeta.format(CSVFormatBeta);
                         filebeta.close();
@@ -1427,19 +1436,7 @@ TEST(case_study_mqsrpde_run_obs_rip, NO2) {
                 }
 
 
-                // Save Psi, R0 and R1 per l'inferenza per un solo alpha 
-                if(idx == 0){        
-                    SpMatrix<double> Psi_mat = model.Psi(fdapde::models::not_nan());
-                    Eigen::saveMarket(Psi_mat, solutions_path + "/Psi" + ".mtx");
-
-                    SpMatrix<double> R0_mat = model.R0(); 
-                    Eigen::saveMarket(R0_mat, solutions_path + "/R0" + ".mtx");
-
-                    SpMatrix<double> R1_mat = model.R1(); 
-                    Eigen::saveMarket(R1_mat, solutions_path + "/R1" + ".mtx");
- 
-                }
-                
+   
 
                 idx++;
             }

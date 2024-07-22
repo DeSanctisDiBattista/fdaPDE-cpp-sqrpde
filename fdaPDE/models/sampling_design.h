@@ -43,14 +43,16 @@ template <typename Model> class SamplingBase {
     SpMatrix<double> Psi_;         // n x N matrix \Psi = [\psi_{ij}] = \psi_j(p_i)
     SpMatrix<double> PsiTD_;       // N x n block \Psi^T*D, being D the matrix of subdomain measures
 
-    SpMatrix<double> Psi_II_approach_;   
-    SpMatrix<double> PsiTD_II_approach_;    
-    DMatrix<double> X_II_approach_;   
+    SpMatrix<double> Psi_reduced_;   
+    SpMatrix<double> PsiTD_reduced_;  
+    DMatrix<double> X_II_approach_;  
+    DMatrix<double> X_reduced_;   
 
     DiagMatrix<double> D_;         // for areal sampling, diagonal matrix of subdomains' measures, D_ = I_n otherwise
     DMatrix<double> locs_;         // matrix of spatial locations p_1, p2_, ... p_n, or subdomains D_1, D_2, ..., D_n
 
     std::vector<bool> unique_locs_flags_; // zeros identify repeated locations 
+    std::vector<unsigned int> idxs_repeated_locs_; // vector containing the indexes in {1..n*} of the repeated locations
     unsigned int num_unique_locs_ = 0;
     DVector<double> num_obs_per_location_;  // number of observations in each location
 
@@ -130,6 +132,9 @@ template <typename Model> class SamplingBase {
                 new_loc = !( almost_equal(locs_.coeff(i,0), locs_.coeff(i-1,0)) && almost_equal(locs_.coeff(i,1), locs_.coeff(i-1,1)) ); 
             }
             unique_locs_flags_.push_back(new_loc);  
+
+            if(!new_loc)
+                idxs_repeated_locs_.push_back(i); 
         }
 
         // compute num_unique_locs_
@@ -146,77 +151,27 @@ template <typename Model> class SamplingBase {
         unsigned int idx_counter = 0; 
         for(auto idx = 1; idx < unique_locs_flags_.size(); ++idx){  // skip the first since always true
             if(unique_locs_flags_[idx] == 1){
-                std::cout << "obs in loc " << idx_counter+1 << "=" << obs_counter << std::endl; 
+                //std::cout << "obs in loc " << idx_counter+1 << "=" << obs_counter << std::endl; 
                 num_obs_per_location_[idx_counter] = obs_counter; 
                 idx_counter++; 
                 obs_counter = 0;
             } 
             obs_counter++; 
         }
-        std::cout << "obs in loc " << num_unique_locs_ << "=" << obs_counter << std::endl; 
+        //std::cout << "obs in loc " << num_unique_locs_ << "=" << obs_counter << std::endl; 
         num_obs_per_location_[num_unique_locs_-1] = obs_counter; 
 
 
         //compute the reduced Psi matrix in case of repeated observations
         if(num_unique_locs() != n_spatial_locs()){
-            //std::cout << "unique locs=" << num_unique_locs() << std::endl; 
-
-            Psi_II_approach_.resize(num_unique_locs(), model().n_spatial_basis()); 
-            PsiTD_II_approach_.resize(model().n_spatial_basis(), num_unique_locs()); 
-            unsigned int count = 0; 
-
-            std::vector<fdapde::Triplet<double>> triplet_list_psi;
-            triplet_list_psi.reserve(num_unique_locs() * Psi_.cols());
-
-            std::vector<fdapde::Triplet<double>> triplet_list_psiTD;
-            triplet_list_psiTD.reserve(num_unique_locs() * PsiTD_.rows());
-
-            for(std::size_t i = 0; i < locs_.rows(); ++i) {
-
-                if(unique_locs_flags_[i]){
-                    
-                    for(int j = 0; j < Psi_.cols(); ++j){
-                        triplet_list_psi.emplace_back(count, j, Psi_.coeff(i, j));
-                    }
-                    
-                    for(int j = 0; j < PsiTD_.rows(); ++j){
-                        triplet_list_psiTD.emplace_back(j, count, PsiTD_.coeff(j, i));
-                    }  // fatto separatamente e non come il trasposto di Psi_II_approach_ così che abbiamo già dentro le eventuali D
-
-                    count ++;
-                }
-            
-            }
-
-            Psi_II_approach_.setFromTriplets(triplet_list_psi.begin(), triplet_list_psi.end());
-            Psi_II_approach_.makeCompressed();
-
-            PsiTD_II_approach_.setFromTriplets(triplet_list_psiTD.begin(), triplet_list_psiTD.end());
-            PsiTD_II_approach_.makeCompressed();
-
-            // // check 
-            // double maxPsi = 0.; 
-            // for(int i = 0; i < Psi_II_approach_.rows(); ++i){
-            //     for(int j = 0; j < Psi_II_approach_.cols(); ++j){
-            //         if(Psi_II_approach_.coeff(i,j) > maxPsi){
-            //             maxPsi = Psi_II_approach_.coeff(i,j); 
-            //         }
-            //         if(std::isnan(Psi_II_approach_.coeff(i,j)))
-            //             std::cout << "avvistati nana in Psi_II_approach_!!" << std::endl; 
-            //     }
-            // }
-            // double maxPsiTD = 0.; 
-            // for(int i = 0; i < PsiTD_II_approach_.rows(); ++i){
-            //     for(int j = 0; j < PsiTD_II_approach_.cols(); ++j){
-            //         if(PsiTD_II_approach_.coeff(i,j) > maxPsiTD){
-            //             maxPsiTD = PsiTD_II_approach_.coeff(i,j); 
-            //         }
-            //         if(std::isnan(PsiTD_II_approach_.coeff(i,j)))
-            //             std::cout << "avvistati nana in PsiTD_II_approach_!!" << std::endl; 
-            //     }
-            // }
-
+        
+            Psi_reduced_ = remove_rows(Psi_);
+            PsiTD_reduced_ = remove_rows(SpMatrix<double>(PsiTD_.transpose())).transpose(); // per PsiTD dobbiamo rimuovere colonne -> passo trasposto e poi rifacciamo trasposto
             if(model().has_covariates()){
+                X_reduced_ = remove_rows(model().X(), idxs_repeated_locs_); 
+
+                // assemble X_II_approach (una volta controllato che X_reduced è uguale, cancellare II_approach)
+                unsigned int count = 0; 
                 X_II_approach_.resize(num_unique_locs(), model().q());
                 count = 0; 
                 for(std::size_t i = 0; i < locs_.rows(); ++i) {
@@ -233,17 +188,32 @@ template <typename Model> class SamplingBase {
                 double max_X = 0.; 
                 for(int i = 0; i < X_II_approach_.rows(); ++i){
                     for(int j = 0; j < X_II_approach_.cols(); ++j){
-                        if(X_II_approach_.coeff(i,j) > max_X){
-                            max_X = X_II_approach_.coeff(i,j); 
+                        double abs_diff = std::abs(X_II_approach_.coeff(i,j)-X_reduced_.coeff(i,j)); 
+                        if(abs_diff > max_X){
+                            max_X = abs_diff; 
                         }
-                        if(std::isnan(X_II_approach_.coeff(i,j)))
-                            std::cout << "avvistati nana in X_II_approach_!!" << std::endl; 
+                        if(std::isnan(abs_diff))
+                            std::cout << "avvistati nana in diff X!!" << std::endl; 
                     }
                 }
+                if(max_X > 1e-10){
+                    std::cout << "WRONG IMPLEMENTATION OF X reduced" << std::endl; 
+                } else{
+                    std::cout << "OK IMPLEMENTATION OF X reduced" << std::endl;
+                }   
+
+
             }
+
+
+
  
+
+        
+            
+
         }
- 
+
     }
 
     // getters
@@ -251,17 +221,73 @@ template <typename Model> class SamplingBase {
     const SpMatrix<double>& PsiTD(not_nan) const { return PsiTD_; }
 
     // M 
-    const SpMatrix<double>& Psi_II_approach(not_nan) const { return Psi_II_approach_; }
-    const SpMatrix<double>& PsiTD_II_approach(not_nan) const {return PsiTD_II_approach_; }
-    const DMatrix<double>& X_II_approach() const {return X_II_approach_; }
+    const SpMatrix<double>& Psi_reduced(not_nan) const { return Psi_reduced_; }
+    const SpMatrix<double>& PsiTD_reduced(not_nan) const {return PsiTD_reduced_; }
+    const DMatrix<double>& X_reduced() const {return X_reduced_; }
     const std::vector<bool>& unique_locs_flags() const { return unique_locs_flags_; }
-
     const DVector<double>& num_obs_per_location() const {return num_obs_per_location_; }
 
 
     // M 
     const unsigned int num_unique_locs() const { 
         return num_unique_locs_;
+    }
+
+    const DMatrix<double> remove_rows(DMatrix<double> mat, std::vector<unsigned int> row_indexes_to_remove) {
+        // Given the matrix mat, and a vector of row indexes row_indexes_to_remove, returns the matrix 
+        // without the rows in row_indexes_to_remove
+        std::cout << "remove rows dense matrix" << std::endl; 
+        for(unsigned int rowToRemove : row_indexes_to_remove){
+            if(rowToRemove < mat.rows()){
+                removeRow(mat, rowToRemove); 
+                // decrease the indexes to remove by one since a row has been eliminated
+                std::transform(std::begin(row_indexes_to_remove),std::end(row_indexes_to_remove),std::begin(row_indexes_to_remove),[](unsigned int x){return x-1;});
+            } else{
+                std::cout << "Error: row to remove exceeds the matrix size" << std::endl; 
+            }        
+        }
+
+        return(mat); 
+    }
+
+
+    void removeRow(DMatrix<double>& matrix, unsigned int rowToRemove){
+        unsigned int numRows = matrix.rows()-1;
+        unsigned int numCols = matrix.cols();
+
+        if(rowToRemove < numRows)
+            matrix.block(rowToRemove,0,numRows-rowToRemove,numCols) = matrix.block(rowToRemove+1,0,numRows-rowToRemove,numCols);
+
+        matrix.conservativeResize(numRows,numCols);
+    }
+
+    const SpMatrix<double> remove_rows(SpMatrix<double> mat) {
+        // Given the matrix mat, and a vector of row indexes row_indexes_to_remove, returns the matrix 
+        // without the rows in row_indexes_to_remove
+        std::cout << "remove rows sparse matrix" << std::endl; 
+        SpMatrix<double> mat_ret; 
+        mat_ret.resize(num_unique_locs(), mat.cols()); 
+        unsigned int count = 0; 
+
+        std::vector<fdapde::Triplet<double>> triplet_list;
+        triplet_list.reserve(num_unique_locs() * mat.cols());
+
+        for(std::size_t i = 0; i < locs_.rows(); ++i) {
+
+            if(unique_locs_flags_[i]){            
+                for(int j = 0; j < mat.cols(); ++j)
+                    triplet_list.emplace_back(count, j, mat.coeff(i, j));
+            
+                count ++;
+            }
+        
+        }
+
+        mat_ret.setFromTriplets(triplet_list.begin(), triplet_list.end());
+        mat_ret.makeCompressed();
+
+
+        return(mat_ret); 
     }
 
 

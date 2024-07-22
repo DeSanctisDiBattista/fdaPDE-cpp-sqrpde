@@ -46,14 +46,14 @@
     using Base::has_covariates; /* true if the model is semi-parametric */                                             \
     using Base::has_weights;    /* true if heteroscedastic observations are assumed */                                 \
     using Base::lmbQ;           /* efficient left multiplication by Q */                                               \
-    using Base::lmbQ_II_approach;        /* M */                                                                        \
+    using Base::lmbQ_reduced;        /* M */                                                                        \
     using Base::f_;             /* estimate of the nonparametric part of the model */                                  \
     using Base::g_;             /* PDE misfit */                                                                       \
     using Base::beta_;          /* estimate of coefficient vector for parametric part */                               \
     using Base::U_;             /* woodbury matrix [\Psi^T*D*W*X, 0] */                                                \
     using Base::V_;             /* woodbury matrix [X^T*W*\Psi,   0] */                                                \
-    using Base::U_II_approach_;             /* M */                                                                     \
-    using Base::V_II_approach_;             /* M */
+    using Base::U_reduced_;             /* M */                                                                     \
+    using Base::V_reduced_;             /* M */
 
 #define FDAPDE_DELETE_INIT                                                                                             \
     void init() { return; }

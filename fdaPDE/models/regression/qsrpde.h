@@ -42,10 +42,10 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     using Base::W_;         // weight matrix
     using Base::XtWX_;      // q x q matrix X^T*W*X
     using Base::unique_locs_flags; // M 
-    using Base::X_II_approach; // M 
-    using Base::W_II_approach; // M 
-    using Base::Psi_II_approach; // M 
-    using Base::PsiTD_II_approach; // M 
+    using Base::X_reduced; // M 
+    using Base::W_reduced; // M 
+    using Base::Psi_reduced; // M 
+    using Base::PsiTD_reduced; // M 
 
 
     // constructor
@@ -70,20 +70,13 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     void set_weights_tolerance(double tol_weights) { tol_weights_ = tol_weights; }
     // M 
     void gcv_oss_rip_strategy_set(const std::string str){
-        if(str == "I"){
-            std::cout << "First strategy set" << std::endl; 
-            gcv_oss_rip_I_strategy = true; 
-        }
-        if(str == "II"){
-            std::cout << "Second strategy set" << std::endl; 
-            gcv_oss_rip_II_strategy = true; 
-            Base::gcv_2_approach_set(true); 
-        }
-        if(str == "IV"){
-            std::cout << "Fourth strategy set" << std::endl; 
-            gcv_oss_rip_IV_strategy = true; 
-            Base::gcv_4_approach_set(true); 
-        }
+
+        gcv_oss_rip_I_strategy = (str=="I"); 
+        gcv_oss_rip_II_strategy = (str=="II"); 
+        gcv_oss_rip_III_strategy = (str=="III"); 
+        gcv_oss_rip_IV_strategy = (str=="IV"); 
+
+        Base::gcv_approach_set(str); 
     }
 
     void init_model() { 
@@ -112,35 +105,35 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
         invA_ = fpirls_.solver().invA();
 
         // M 
-        if( (Base::gcv_2_approach() || Base::gcv_4_approach()) && Base::num_unique_locs() != n_locs()){
-            std::cout << "Computing weigths for GCV II approach..." << std::endl; 
+        if(!gcv_oss_rip_I_strategy){
+            std::cout << "Computing weigths for GCV reduced..." << std::endl; 
             // nb: calcoli ripresi da "fpirls_compute_step", che li fa ad ogni step di fpirls. Ma qui ci servono solo una volta, a convergenza di fpirls. 
 
             // compute summary of observations
             DVector<double> summary_vec = compute_summary_data(); 
-            // compute mu_II_approach
-            DVector<double> mu_II_approach = skip_repeated_locs(mu_); 
+            // compute mu_reduced
+            DVector<double> mu_reduced = skip_repeated_locs(mu_); 
 
             // compute the weights 
-            DVector<double> abs_res_II_approach = (summary_vec - mu_II_approach).array().abs();
+            DVector<double> abs_res_reduced = (summary_vec - mu_reduced).array().abs();
             // W_i = 1/(2*n*(abs_res[i] + tol_weights_)) if abs_res[i] < tol_weights, W_i = 1/(2*n*abs_res[i]) otherwise
-            pW_II_approach =
-            (abs_res_II_approach.array() < tol_weights_)
+            pW_reduced =
+            (abs_res_reduced.array() < tol_weights_)
                 .select(
-                (2 * (abs_res_II_approach.array() + tol_weights_)).inverse(), (2 * abs_res_II_approach.array()).inverse());
-            py_II_approach = summary_vec - (1 - 2. * alpha_) * abs_res_II_approach;
+                (2 * (abs_res_reduced.array() + tol_weights_)).inverse(), (2 * abs_res_reduced.array()).inverse());
+            py_reduced = summary_vec - (1 - 2. * alpha_) * abs_res_reduced;
             // NB: il fattore di normalizzazione verrà inserito dalla Base class, che usa sempre n*
             
             // NB: maschera NON applicata ==> non funziona con k-fold CV e con space-time !!
-            Base::W_II_approach_set(pW_II_approach.asDiagonal());
-            Base::invA_II_approach_set(); 
+            Base::W_reduced_set(pW_reduced.asDiagonal());
+            Base::invA_reduced_set(); 
 
             if(Base::has_covariates()) {
-                // Set XtWX_II_approach_set and its inverse in base class 
-                std::cout << "in solve, setting XtWX, U, V II approach" << std::endl; 
-                Base::XtWX_II_approach_set(X_II_approach().transpose() * W_II_approach() * X_II_approach()); // at this point W_II_approach has been filled
-                Base::U_II_approach_set(); 
-                Base::V_II_approach_set(); 
+                // Set XtWX_reduced_set and its inverse in base class 
+                std::cout << "in solve, setting XtWX, U, V reduced" << std::endl; 
+                Base::XtWX_reduced_set(X_reduced().transpose() * W_reduced() * X_reduced()); // at this point W_reduced has been filled
+                Base::U_reduced_set(); 
+                Base::V_reduced_set(); 
             }
         } 
 
@@ -211,64 +204,24 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
         double result = 0;
 
-        if(gcv_oss_rip_I_strategy){
 
-            std::cout << "Running GCV per obs ripetute (I approccio)" << std::endl;
+        if(!gcv_oss_rip_I_strategy){
 
-            unsigned int n_unique_obs = 0;   // number of unique locations 
-            bool new_loc;                    // flag for new location 
+            std::cout << "Running GCV per obs ripetute" << std::endl;
 
-            for(std::size_t i = 0; i < n_locs(); ++i) {
-
-                if(i==0){
-                    new_loc = true; 
-                } else{
-                    new_loc = !( almost_equal(Base::locs().coeff(i,0), Base::locs().coeff(i-1,0)) && almost_equal(Base::locs().coeff(i,1), Base::locs().coeff(i-1,1)) ); 
-                }
-
-                if(!Base::masked_obs()[i] && new_loc){
-                    
-                    std::size_t j=0;   // size of the i_th block of locations 
-                    double summary_data = 0.;    // statistical summary of the observations in location i 
-                    // Compute a summary of the block
-                    while(almost_equal(Base::locs().coeff(i,0), Base::locs().coeff(i+j,0)) && almost_equal(Base::locs().coeff(i,1), Base::locs().coeff(i+j,1)) ){    // nb: it always enter the first time 
-                        summary_data += op2.coeff(i+j, 0);   // nb: op2 è il dato y 
-                        j++; 
-                    }
-                    summary_data = summary_data / j;   // divide by block size to have the mean of the observations in the block i 
-                    if(std::abs(summary_data) < 1e-10){
-                        std::cout << "ATT in norm: very small summary" << std::endl; 
-                        std::cout << "value=" << summary_data << std::endl; 
-                    } 
-                        
-                    result += pinball_loss(summary_data - op1.coeff(i, 0), std::pow(10, eps_));
-                    n_unique_obs++; 
-                }
-            }
-            
-
-            // Adjustment of result to account for repeated data (nb: in questo modo i calcoli in gcv.h sono invariati)
-            result *= n_obs() / n_unique_obs; 
-        } 
-
-        if(gcv_oss_rip_II_strategy || gcv_oss_rip_IV_strategy){
-
-            std::cout << "Running GCV per obs ripetute (II-IV approccio)" << std::endl;
-
-            DVector<double> fit_II_approach = skip_repeated_locs(op1);
+            DVector<double> fit_reduced = skip_repeated_locs(op1);
             DVector<double> summary_vec = compute_summary_data(); 
 
             for (int i = 0; i < Base::num_unique_locs(); ++i) {
-                result += pinball_loss(summary_vec[i] - fit_II_approach(i), std::pow(10, eps_));
+                result += pinball_loss(summary_vec[i] - fit_reduced(i), std::pow(10, eps_));
             }
-        }
-        
-        if(!gcv_oss_rip_I_strategy && !gcv_oss_rip_II_strategy && !gcv_oss_rip_IV_strategy){
+        } else{
+            std::cout << "Running GCV I strategy" << std::endl;
             for (int i = 0; i < n_locs(); ++i) {
                 if (!Base::masked_obs()[i]) result += pinball_loss(op2.coeff(i, 0) - op1.coeff(i, 0), std::pow(10, eps_));
             }
-            
         }
+        
 
         return std::pow(result, 2);    // M tolto il fattore di normalizzazione in quanto è stato tolto anche da gcv.h
     }
@@ -353,8 +306,8 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     DVector<double> mu_;      // \mu^k = [ \mu^k_1, ..., \mu^k_n ] : quantile vector at step k
     fdapde::SparseLU<SpMatrix<double>> invA_;
 
-    DVector<double> pW_II_approach;   // M 
-    DVector<double> py_II_approach;   // M 
+    DVector<double> pW_reduced;   // M 
+    DVector<double> py_reduced;   // M 
 
     FPIRLS<This> fpirls_;   // fpirls algorithm
     int max_iter_ = 200;    // maximum number of iterations in fpirls before forced stop
@@ -364,8 +317,9 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     // Debug -> salva il numero di iterazioni (per il test obs ripetute)
     std::size_t n_iter_qsrpde_ = 0;
 
-    bool gcv_oss_rip_I_strategy = false; 
+    bool gcv_oss_rip_I_strategy = true; 
     bool gcv_oss_rip_II_strategy = false; 
+    bool gcv_oss_rip_III_strategy = false; 
     bool gcv_oss_rip_IV_strategy = false; 
 
     double eps_ = -1.0;   // pinball loss smoothing factor

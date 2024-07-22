@@ -44,11 +44,11 @@ template <typename RegularizationType> struct StatisticalModel__ { };
     decltype(auto) u()       const { return invoke<const DMatrix<double>&, 9>(*this); }                                \
     decltype(auto) Psi()     const { return invoke<const SpMatrix<double>&, 10>(*this, not_nan()); }                   \
     decltype(auto) PsiTD()   const { return invoke<const SpMatrix<double>&, 11>(*this, not_nan()); }                   \
-    decltype(auto) gcv_2_approach()   const { return invoke<bool, 12>(*this); }                       \
-    decltype(auto) T_II_approach()  { return invoke<const DMatrix<double>&, 13>(*this); }                   \
-    decltype(auto) PsiTD_II_approach() const { return invoke<const SpMatrix<double>&, 14>(*this, not_nan()); }              \
-    decltype(auto) Psi_II_approach() const { return invoke<const SpMatrix<double>&, 15>(*this, not_nan()); }                \
-    decltype(auto) W_II_approach() const { return invoke<const DiagMatrix<double>&, 16>(*this); }                \
+    decltype(auto) gcv_approach()   const { return invoke<bool, 12>(*this); }                       \
+    decltype(auto) T_reduced()  { return invoke<const DMatrix<double>&, 13>(*this); }                   \
+    decltype(auto) PsiTD_reduced() const { return invoke<const SpMatrix<double>&, 14>(*this, not_nan()); }              \
+    decltype(auto) Psi_reduced() const { return invoke<const SpMatrix<double>&, 15>(*this, not_nan()); }                \
+    decltype(auto) W_reduced() const { return invoke<const DiagMatrix<double>&, 16>(*this); }                \
     decltype(auto) num_unique_locs() const { return invoke<const unsigned int, 17>(*this); }                     
   
 
@@ -66,8 +66,8 @@ template <typename RegularizationType> struct StatisticalModel__ { };
     &M::u,  /* discretization of forcing term, possibly tensorized */                                                  \
     static_cast<const SpMatrix<double>& (SamplingBase<M>::*)(not_nan) const>(&M::Psi),  /* [\Psi]_ij = \psi_j(p_i) */  \
     static_cast<const SpMatrix<double>& (SamplingBase<M>::*)(not_nan) const>(&M::PsiTD), /* \Psi^\top * D */            \
-    &M::gcv_2_approach, &M::T_II_approach, &M::PsiTD_II_approach, &M::Psi_II_approach, \
-     &M::W_II_approach, &M::num_unique_locs
+    &M::gcv_approach, &M::T_reduced, &M::PsiTD_reduced, &M::Psi_reduced, \
+     &M::W_reduced, &M::num_unique_locs
 
 // penalty independent model interface
 template <> struct StatisticalModel__<void> {

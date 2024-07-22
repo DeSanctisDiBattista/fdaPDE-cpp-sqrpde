@@ -37,7 +37,7 @@ class StochasticEDF {
     DMatrix<double> Y_;     // Us_^T*\Psi
     int seed_ = fdapde::random_seed;
     bool init_ = false;
-    bool gcv_2_approach_ = false; // M 
+    std::string gcv_approach_; // M 
    public:
     // constructor
     StochasticEDF(int r, int seed) :
@@ -53,23 +53,7 @@ class StochasticEDF {
             std::mt19937 rng(seed_);
             std::bernoulli_distribution Be(0.5);   // bernulli distribution with parameter p = 0.5
 
-
-            if(gcv_2_approach_){
-                std::cout << "Trace computation (stoch) with II approach" << std::endl; 
-                Us_.resize(model_.num_unique_locs(), r_);       // preallocate memory for matrix Us
-                // fill matrix
-                for (int i = 0; i < model_.num_unique_locs(); ++i) {
-                    for (int j = 0; j < r_; ++j) {
-                        if (Be(rng))
-                            Us_(i, j) = 1.0;
-                        else
-                            Us_(i, j) = -1.0;
-                    }
-                }
-                // prepare matrix Y
-                Y_ = Us_.transpose() * model_.Psi_II_approach();
-
-            } else{
+            if(gcv_approach_ == "I"){
                 Us_.resize(model_.n_locs(), r_);       // preallocate memory for matrix Us
                 // fill matrix
                 for (int i = 0; i < model_.n_locs(); ++i) {
@@ -82,7 +66,27 @@ class StochasticEDF {
                 }
                 // prepare matrix Y
                 Y_ = Us_.transpose() * model_.Psi();
+            }
 
+            if(gcv_approach_ == "II"){
+                std::cout << "Trace computation (stoch) with II approach" << std::endl; 
+                Us_.resize(model_.num_unique_locs(), r_);       // preallocate memory for matrix Us
+                // fill matrix
+                for (int i = 0; i < model_.num_unique_locs(); ++i) {
+                    for (int j = 0; j < r_; ++j) {
+                        if (Be(rng))
+                            Us_(i, j) = 1.0;
+                        else
+                            Us_(i, j) = -1.0;
+                    }
+                }
+                // prepare matrix Y
+                Y_ = Us_.transpose() * model_.Psi_reduced();
+
+            }
+
+            if(gcv_approach_ == "III" || gcv_approach_ == "IV"){
+                std::cout << "ATT: in stochastic edf manca implementazione III e IV !!!" << std::endl; 
             }
 
             init_ = true;   // never reinitialize again
@@ -91,34 +95,47 @@ class StochasticEDF {
         int n = model_.n_basis();
         Bs_ = DMatrix<double>::Zero(2 * n, r_);
 
-        if(gcv_2_approach_){
-            if (!model_.has_covariates())   // non-parametric model
-                Bs_.topRows(n) = -model_.PsiTD_II_approach() * model_.W_II_approach() * Us_;
-            else   // semi-parametric model
-                Bs_.topRows(n) = -model_.PsiTD_II_approach() * model_.lmbQ_II_approach(Us_);   
-        } else{
+        if(gcv_approach_ == "I"){
             if (!model_.has_covariates())   // non-parametric model
                 Bs_.topRows(n) = -model_.PsiTD() * model_.W() * Us_;
             else   // semi-parametric model
                 Bs_.topRows(n) = -model_.PsiTD() * model_.lmbQ(Us_);   
         }
 
+        if(gcv_approach_ == "II"){
+            if (!model_.has_covariates())   // non-parametric model
+                Bs_.topRows(n) = -model_.PsiTD_reduced() * model_.W_reduced() * Us_;
+            else   // semi-parametric model
+                Bs_.topRows(n) = -model_.PsiTD_reduced() * model_.lmbQ_reduced(Us_);   
+        }
+
+        if(gcv_approach_ == "III" || gcv_approach_ == "IV"){
+            std::cout << "ATT: in stochastic edf manca implementazione III e IV !!!" << std::endl; 
+        }
+
 
         DMatrix<double> sol;              // room for problem solution
-        if(gcv_2_approach_){
-            if (!model_.has_covariates()) {   // nonparametric case
-                sol = model_.invA_II_approach().solve(Bs_);
-            } else {
-                // solve system (A+UCV)*x = Bs via woodbury decomposition using matrices U and V cached by model_
-                sol = SMW<>().solve(model_.invA_II_approach(), model_.U_II_approach(), model_.XtWX_II_approach(), model_.V_II_approach(), Bs_);
-            }
-        } else{
+
+        if(gcv_approach_ == "I"){
             if (!model_.has_covariates()) {   // nonparametric case
                 sol = model_.invA().solve(Bs_);
             } else {
                 // solve system (A+UCV)*x = Bs via woodbury decomposition using matrices U and V cached by model_
                 sol = SMW<>().solve(model_.invA(), model_.U(), model_.XtWX(), model_.V(), Bs_);
             }
+        }
+
+        if(gcv_approach_ == "II"){
+            if (!model_.has_covariates()) {   // nonparametric case
+                sol = model_.invA_reduced().solve(Bs_);
+            } else {
+                // solve system (A+UCV)*x = Bs via woodbury decomposition using matrices U and V cached by model_
+                sol = SMW<>().solve(model_.invA_reduced(), model_.U_reduced(), model_.XtWX_reduced(), model_.V_reduced(), Bs_);
+            }
+        } 
+
+        if(gcv_approach_ == "III" || gcv_approach_ == "IV"){
+            std::cout << "ATT: in stochastic edf manca implementazione III e IV !!!" << std::endl; 
         }
 
         // compute approximated Tr[S] using monte carlo mean
@@ -138,10 +155,10 @@ class StochasticEDF {
     }   // M : ficticious, just to compile, since we need this method in exact_edf
 
     // M 
-    void gcv_2_approach_set_trace(bool gcv_approach) { 
-        std::cout << "Setting strategy GCV in stochastic_edf.h" << std::endl; 
-        std::cout << "boolean value = " << gcv_approach << std::endl; 
-        gcv_2_approach_ = gcv_approach; 
+    void gcv_approach_set_trace(std::string gcv_approach) { 
+        std::cout << "Setting strategy GCV in exact_edf.h" << std::endl; 
+        std::cout << "string value = " << gcv_approach << std::endl; 
+        gcv_approach_ = gcv_approach; 
     }; 
 };
 
