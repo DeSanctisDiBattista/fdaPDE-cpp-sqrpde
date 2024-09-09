@@ -107,12 +107,9 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
         g_ = sol.tail(n_basis());
 
         // M 
-        if(!gcv_oss_rip_I_strategy){
+        if(!gcv_oss_rip_I_strategy){  // if a "reduced" strategy is running...
             std::cout << "Computing W in solve srpde for GCV reduced..." << std::endl; 
 
-            // for(std::size_t i = 0; i < Base::num_unique_locs(); ++i){
-            //     Base::W_reduced_set(i, 1.0);   // identity matrix 
-            // }  
             std::cout << "setting normal W_reduced" << std::endl; 
             Base::W_reduced_set(DVector<double>::Ones(Base::num_unique_locs()).asDiagonal());  
             
@@ -135,12 +132,12 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
         
         double result = 0.; 
         if(!gcv_oss_rip_I_strategy){
-            std::cout << "Running GCV per obs ripetute in SRPDE" << std::endl; 
+            std::cout << "Running GCV con obs summarizzate in SRPDE" << std::endl; 
             DVector<double> fit_reduced = skip_repeated_locs(op1);
             DVector<double> summary_vec = compute_summary_data(); 
             result = (fit_reduced - summary_vec).squaredNorm();  
         } else{
-            std::cout << "Running GCV per obs uniche in SRPDE" << std::endl;
+            std::cout << "Running GCV con tutte obs in SRPDE" << std::endl;
             result = (op1 - op2).squaredNorm();  
         }
         
@@ -150,10 +147,10 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
     // M 
     void gcv_oss_rip_strategy_set(const std::string str){
 
-        gcv_oss_rip_I_strategy = (str=="I"); 
-        gcv_oss_rip_II_strategy = (str=="II"); 
-        gcv_oss_rip_III_strategy = (str=="III"); 
-        gcv_oss_rip_IV_strategy = (str=="IV"); 
+        gcv_oss_rip_I_strategy = (str=="first"); 
+        gcv_oss_rip_II_strategy = (str=="second"); 
+        gcv_oss_rip_III_strategy = (str=="third"); 
+        gcv_oss_rip_IV_strategy = (str=="fourth"); 
 
         Base::gcv_approach_set(str); 
     }

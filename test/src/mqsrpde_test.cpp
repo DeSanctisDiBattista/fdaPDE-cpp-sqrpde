@@ -1778,10 +1778,14 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     bool mean_estimation = true;
     bool quantile_estimation = !mean_estimation;  
 
-    bool corr = true; 
-    std::string AR_coeff = "0.9"; 
+    std::string AR_coeff = "";   // "/AR_0.9"
 
-    std::string test_str = "6";   // "4"
+    bool has_covariates = true;
+    DVector<double> beta_true; 
+    beta_true.resize(2); 
+    beta_true << 1.0, -1.0; 
+
+    std::string test_str = "3";  
 
     std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
 
@@ -1808,7 +1812,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
     }
 
     std::vector<unsigned int> max_reps = {10, 50};   // max number of repetitions 
-    std::vector<std::string> data_types = {"data"};   // ATT: tolto data  
+    std::vector<std::string> data_types = {"data"};   
     for(auto max_rep : max_reps){
         data_types.push_back("data_rip_" + std::to_string(max_rep));
     }
@@ -1821,24 +1825,14 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
     const double gamma0 = 1.;    // crossing penalty   
 
-    std::string gcv_summary = "_I_appr";    // "_I_appr"  "_II_appr" "_III_appr" "_IV_appr"
-
-    std::string strategy_gcv; 
-    if(gcv_summary == "_I_appr")
-        strategy_gcv = "I";   
-    if(gcv_summary == "_II_appr")
-        strategy_gcv = "II"; 
-    if(gcv_summary == "_III_appr")
-        strategy_gcv = "III"; 
-    if(gcv_summary == "_IV_appr")
-        strategy_gcv = "IV";   
+    std::vector<std::string> gcv_summaries = {"10CV", "_I_appr",  "_II_appr", "_III_appr", "_IV_appr"}; 
 
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
     
-    bool compute_rmse = false;
-    bool compute_gcv = true;    
+    bool compute_rmse = true;
+    bool compute_gcv = false;    
 
     const unsigned int n_sim = 15;
 
@@ -1855,40 +1849,453 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
         std::cout << std::endl;
         std::cout << std::endl;
         std::cout << "--------------------Simulation #" << std::to_string(sim) << "-------------" << std::endl; 
-        
-        for(std::string data_type : data_types){
 
-            std::string gcv_summary_tmp; 
-            std::string strategy_gcv_tmp; 
-            if(data_type == "data"){
-                gcv_summary_tmp = "_I_appr"; 
-                strategy_gcv_tmp = "I"; 
-            } else{
-                gcv_summary_tmp = gcv_summary; 
-                strategy_gcv_tmp = strategy_gcv; 
+        for(std::string gcv_summary : gcv_summaries){
+          
+            std::string strategy_gcv; 
+            if(gcv_summary == "_I_appr")
+                strategy_gcv = "first";   
+            if(gcv_summary == "_II_appr")
+                strategy_gcv = "second"; 
+            if(gcv_summary == "_III_appr")
+                strategy_gcv = "third"; 
+            if(gcv_summary == "_IV_appr")
+                strategy_gcv = "fourth";     
+            if(gcv_summary.substr(gcv_summary.length() - 2) == "CV"){
+                strategy_gcv = gcv_summary;
             }
+                  
+
+            std::cout << "strategy_gcv=" << strategy_gcv << std::endl;
+
+        
+            for(std::string data_type : data_types){
+
+                std::string gcv_summary_tmp; 
+                std::string strategy_gcv_tmp; 
+                if(data_type == "data" && gcv_summary.substr(gcv_summary.length() - 2) != "CV"){
+                    gcv_summary_tmp = "_I_appr"; 
+                    strategy_gcv_tmp = "first"; 
+                } else{
+                    gcv_summary_tmp = gcv_summary; 
+                    strategy_gcv_tmp = strategy_gcv; 
+                }
 
 
-            if(data_type == ("data_rip_" + chosen_max_repetion)){
-                for(std::string nxx_loc : nxx_vec){
+                if(data_type == ("data_rip_" + chosen_max_repetion)){
+                    for(std::string nxx_loc : nxx_vec){
+
+                        std::string data_path = R_path + "/" + data_type; 
+                        DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
+                        //std::cout << "locs size = " << loc.rows() << std::endl; 
+
+                        DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + AR_coeff + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+                        //std::cout << "size y in test =" << y.rows() << std::endl;
+
+                        BlockFrame<double, int> df;
+                        df.insert(OBSERVATIONS_BLK, y);
+
+                        DMatrix<double> X; 
+                        if(has_covariates){
+                            X = read_csv<double>(data_path + "/loc_" + nxx_loc + AR_coeff + "/" + simulations_string + "/X.csv");   
+                            std::cout << "dim X=" << X.rows() << ";" << X.cols() << std::endl; 
+                            df.insert(DESIGN_MATRIX_BLK, X);  
+                        }
+
+                        if(mean_estimation){
+
+                            std::cout << "------------------MEAN REGRESSION-----------------" << std::endl;
+
+                            std::string gcv_path = data_path +  "/loc_" + nxx_loc  + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type;  
+                            // std::cout << "gcv_path " << gcv_path << std::endl;
+                            std::string rmse_path = data_path +  "/loc_" + nxx_loc + AR_coeff + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                            if(compute_gcv){
+                                std::cout << "------------------gcv selection-----------------" << std::endl;
+                                // Read lambda 
+                                double best_lambda;
+                                std::cout << "gcv_summary_tmp=" << gcv_summary_tmp << std::endl; 
+                                std::cout << gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv" << std::endl; 
+                                std::ifstream fileLambda(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv");
+                                if(fileLambda.is_open()){
+                                    fileLambda >> best_lambda; 
+                                    fileLambda.close();
+                                }
+                                std::cout << "best lambda=" << best_lambda << std::endl; 
+
+                                SRPDE model_mean(problem, Sampling::pointwise);
+                                model_mean.set_lambda_D(best_lambda);
+                                // set model's data
+                                model_mean.set_spatial_locations(loc);  
+                                model_mean.set_data(df);           
+                                // solve smoothing problem
+                                model_mean.init();
+                                model_mean.solve();
+
+                                // save
+                                DMatrix<double> computedF = model_mean.f();
+                                const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                std::ofstream filef(gcv_path + "/f" + gcv_summary_tmp + norm_loss + ".csv");
+                                if(filef.is_open()){
+                                    filef << computedF.format(CSVFormatf);
+                                    filef.close();
+                                }
+
+                                DMatrix<double> computedFn = model_mean.Psi()*model_mean.f();
+                                const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                std::ofstream filefn(gcv_path + "/fn" + gcv_summary_tmp + norm_loss + ".csv");
+                                if(filefn.is_open()){
+                                    filefn << computedFn.format(CSVFormatfn);
+                                    filefn.close();
+                                }
+
+                                if(has_covariates){
+                                    DMatrix<double> computedBeta = model_mean.beta();
+                                    const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                    std::ofstream filebeta(gcv_path + "/beta" + gcv_summary_tmp + norm_loss + ".csv");
+                                    if(filebeta.is_open()){
+                                        filebeta << computedBeta.format(CSVFormatbeta);
+                                        filebeta.close();
+                                    }
+                                }
+
+
+                            } 
+                            if(compute_rmse){
+                                std::cout << "------------------rmse selection-----------------" << std::endl;
+                                // Read lambda 
+                                double best_lambda;
+                                std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + norm_loss + ".csv");
+                                if(fileLambda.is_open()){
+                                    fileLambda >> best_lambda; 
+                                    fileLambda.close();
+                                }
+                                std::cout << "best lambda=" << best_lambda << std::endl; 
+
+                                SRPDE model_mean(problem, Sampling::pointwise);
+                                model_mean.set_lambda_D(best_lambda);
+                                // set model's data
+                                model_mean.set_spatial_locations(loc);
+                                model_mean.set_data(df);
+                                // solve smoothing problem
+                                model_mean.init();
+                                model_mean.solve();
+
+                                // save
+                                DMatrix<double> computedF = model_mean.f();
+                                const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                std::ofstream filef(rmse_path + "/f" + norm_loss + ".csv");
+                                if(filef.is_open()){
+                                    filef << computedF.format(CSVFormatf);
+                                    filef.close();
+                                }
+
+                                DMatrix<double> computedFn = model_mean.Psi()*model_mean.f();
+                                const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                std::ofstream filefn(rmse_path + "/fn" + norm_loss + ".csv");
+                                if(filefn.is_open()){
+                                    filefn << computedFn.format(CSVFormatfn);
+                                    filefn.close();
+                                }
+
+                                if(has_covariates){
+                                    DMatrix<double> computedBeta = model_mean.beta();
+                                    const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                    std::ofstream filebeta(rmse_path + "/beta" + norm_loss + ".csv");
+                                    if(filebeta.is_open()){
+                                        filebeta << computedBeta.format(CSVFormatbeta);
+                                        filebeta.close();
+                                    }
+                                }
+
+                            }
+
+                        }
+                
+                        if(quantile_estimation){
+
+                            std::cout << "------------------QUANTILE REGRESSION-----------------" << std::endl; 
+                        
+                            if(compute_gcv){
+                                std::cout << "------------------run with gcv selected lambda-----------------" << std::endl;
+
+                                for(auto smooth_type : smooth_types_quantile){
+                                    const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
+                                    if(single){
+                                        for(auto alpha : alphas){
+
+                                            unsigned int alpha_int = alpha*100; 
+                                            std::string alpha_string = std::to_string(alpha_int); 
+
+                                            std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
+                                            std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/" + smooth_type + "/est" + diffusion_type;
+                                            // Read lambda 
+                                            double best_lambda;
+                                            std::ifstream fileLambda(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
+                                            if(fileLambda.is_open()){
+                                                fileLambda >> best_lambda; 
+                                                fileLambda.close();
+                                            }
+                                            std::cout << "best lambda=" << best_lambda << std::endl; 
+
+                                            QSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alpha);
+                                            model_quantile.set_lambda_D(best_lambda);
+                                            // set model's data
+                                            model_quantile.set_spatial_locations(loc);  
+                                            model_quantile.set_data(df);    
+                                            
+                                            // solve smoothing problem
+                                            model_quantile.init();
+                                            model_quantile.solve();
+
+                                            // save
+                                            DMatrix<double> computedF = model_quantile.f();
+                                            const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                            std::ofstream filef(gcv_path + "/f" + gcv_summary_tmp + ".csv");
+                                            if(filef.is_open()){
+                                                filef << computedF.format(CSVFormatf);
+                                                filef.close();
+                                            }
+
+                                            DMatrix<double> computedFn = model_quantile.Psi()*model_quantile.f();
+                                            const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                            std::ofstream filefn(gcv_path + "/fn" + gcv_summary_tmp + ".csv");
+                                            if(filefn.is_open()){
+                                                filefn << computedFn.format(CSVFormatfn);
+                                                filefn.close();
+                                            }
+
+
+                                            if(has_covariates){
+                                                DMatrix<double> computedBeta = model_quantile.beta();
+                                                const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                                std::ofstream filebeta(gcv_path + "/beta" + gcv_summary_tmp + ".csv");
+                                                if(filebeta.is_open()){
+                                                    filebeta << computedBeta.format(CSVFormatbeta);
+                                                    filebeta.close();
+                                                }
+                                            }
+
+                                        }
+                                    }
+                                    if(multiple){
+
+                                        MQSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alphas);
+                                        std::string solution_mult_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/mult_est" + diffusion_type;
+                                        std::string lambda_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type;
+
+                                        // use optimal lambda to avoid possible numerical issues
+                                        DMatrix<double> lambdas;
+                                        DVector<double> lambdas_temp; 
+                                        lambdas_temp.resize(alphas.size());
+                                        for(std::size_t idx = 0; idx < alphas.size(); ++idx){
+                                            unsigned int alpha_int = alphas[idx]*100;  
+                                            std::ifstream fileLambdas(lambda_path  + "/alpha_" + std::to_string(alpha_int) + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
+                                            if(fileLambdas.is_open()){
+                                                fileLambdas >> lambdas_temp(idx); 
+                                                fileLambdas.close();
+                                            }
+                                        }
+                                        lambdas = lambdas_temp;                
+                                        model_quantile.setLambdas_D(lambdas);
+
+                                        // set model data
+                                        model_quantile.set_data(df);
+                                        model_quantile.set_spatial_locations(loc); 
+                                        model_quantile.set_gamma_init(gamma0);  
+
+                                        // solve smoothing problem
+                                        model_quantile.init();
+                                        model_quantile.solve();
+
+                                        // Save solution
+                                        DMatrix<double> computedF = model_quantile.f();
+                                        const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filef(solution_mult_path + "/f_all" + gcv_summary_tmp + ".csv");
+                                        if(filef.is_open()){
+                                            filef << computedF.format(CSVFormatf);
+                                            filef.close();
+                                        }
+
+                                        DMatrix<double> computedFn = model_quantile.Psi_mult()*model_quantile.f();
+                                        const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filefn(solution_mult_path + "/fn_all" + gcv_summary_tmp + ".csv");
+                                        if(filefn.is_open()){
+                                            filefn << computedFn.format(CSVFormatfn);
+                                            filefn.close();
+                                        }
+
+                                        if(has_covariates){
+                                            DMatrix<double> computedBeta = model_quantile.beta();
+                                            const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                            std::ofstream filebeta(solution_mult_path + "/beta" + gcv_summary_tmp + ".csv");
+                                            if(filebeta.is_open()){
+                                                filebeta << computedBeta.format(CSVFormatbeta);
+                                                filebeta.close();
+                                            }
+                                        }
+
+
+                                    }
+
+                                }
+                            } 
+                            if(compute_rmse){
+                                std::cout << "------------------rmse computation-----------------" << std::endl;
+                                
+                                if(single){
+
+                                    for(auto alpha : alphas){
+
+                                        unsigned int alpha_int = alpha*100; 
+                                        std::string alpha_string = std::to_string(alpha_int); 
+
+                                        std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
+                                        std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string+ "/RMSE/est" + diffusion_type;
+                                        // Read lambda 
+                                        double best_lambda;
+                                        std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + ".csv");
+                                        if(fileLambda.is_open()){
+                                            fileLambda >> best_lambda; 
+                                            fileLambda.close();
+                                        }
+                                        std::cout << "best lambda=" << best_lambda << std::endl; 
+
+                                        QSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alpha);
+                                        model_quantile.set_lambda_D(best_lambda);
+                                        // set model's data
+                                        model_quantile.set_spatial_locations(loc);  
+                                        model_quantile.set_data(df);           
+                                        // solve smoothing problem
+                                        model_quantile.init();
+                                        model_quantile.solve();
+
+                                        // save
+                                        DMatrix<double> computedF = model_quantile.f();
+                                        const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filef(rmse_path + "/f.csv");
+                                        if(filef.is_open()){
+                                            filef << computedF.format(CSVFormatf);
+                                            filef.close();
+                                        }
+
+                                        DMatrix<double> computedFn = model_quantile.Psi()*model_quantile.f();
+                                        const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filefn(rmse_path + "/fn.csv");
+                                        if(filefn.is_open()){
+                                            filefn << computedFn.format(CSVFormatfn);
+                                            filefn.close();
+                                        }
+
+
+                                        if(has_covariates){
+                                            DMatrix<double> computedBeta = model_quantile.beta();
+                                            const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                            std::ofstream filebeta(rmse_path + "/beta" + gcv_summary_tmp + ".csv");
+                                            if(filebeta.is_open()){
+                                                filebeta << computedBeta.format(CSVFormatbeta);
+                                                filebeta.close();
+                                            }
+                                        }                                        
+
+
+                                    }
+                                }
+                                if(multiple){
+
+                                    MQSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alphas);
+                                    std::string solution_mult_path = data_path +  "/loc_" + nxx_loc + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/mult_est" + diffusion_type;
+                                    std::string lambda_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type;
+
+                                    // use optimal lambda to avoid possible numerical issues
+                                    DMatrix<double> lambdas;
+                                    DVector<double> lambdas_temp; 
+                                    lambdas_temp.resize(alphas.size());
+                                    for(std::size_t idx = 0; idx < alphas.size(); ++idx){
+                                        unsigned int alpha_int = alphas[idx]*100;  
+                                        std::ifstream fileLambdas(lambda_path + "/alpha_" + std::to_string(alpha_int) +  "/lambda_s_opt.csv");
+                                        if(fileLambdas.is_open()){
+                                            fileLambdas >> lambdas_temp(idx); 
+                                            fileLambdas.close();
+                                        }
+                                    }
+                                    lambdas = lambdas_temp;                
+                                    model_quantile.setLambdas_D(lambdas);
+
+                                    // set model data
+                                    model_quantile.set_data(df);
+                                    model_quantile.set_spatial_locations(loc); 
+                                    model_quantile.set_gamma_init(gamma0);  
+
+                                    // solve smoothing problem
+                                    model_quantile.init();
+                                    model_quantile.solve();
+
+                                    // Save solution
+                                    DMatrix<double> computedF = model_quantile.f();
+                                    const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                    std::ofstream filef(solution_mult_path + "/f_all.csv");
+                                    if(filef.is_open()){
+                                        filef << computedF.format(CSVFormatf);
+                                        filef.close();
+                                    }
+
+                                    DMatrix<double> computedFn = model_quantile.Psi_mult()*model_quantile.f();
+                                    const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                    std::ofstream filefn(solution_mult_path + "/fn_all.csv");
+                                    if(filefn.is_open()){
+                                        filefn << computedFn.format(CSVFormatfn);
+                                        filefn.close();
+                                    }
+
+                                    if(has_covariates){
+                                        DMatrix<double> computedBeta = model_quantile.beta();
+                                        const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filebeta(solution_mult_path + "/beta" + gcv_summary_tmp + ".csv");
+                                        if(filebeta.is_open()){
+                                            filebeta << computedBeta.format(CSVFormatbeta);
+                                            filebeta.close();
+                                        }
+                                    }     
+
+
+                                }
+                                
+
+
+
+                            }                    
+
+                        }                    
+                        
+                    } 
+                } else{
+
+                    std::string nxx_loc = chosen_nxx_loc; 
 
                     std::string data_path = R_path + "/" + data_type; 
                     DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
                     //std::cout << "locs size = " << loc.rows() << std::endl; 
 
-                    DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc + "/AR_" + AR_coeff + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
+                    DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc  + AR_coeff + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
                     //std::cout << "size y in test =" << y.rows() << std::endl;
-
+                    
                     BlockFrame<double, int> df;
                     df.insert(OBSERVATIONS_BLK, y);
+
+                    DMatrix<double> X; 
+                    if(has_covariates){
+                        X = read_csv<double>(data_path + "/loc_" + nxx_loc + AR_coeff + "/" + simulations_string + "/X.csv");   
+                        std::cout << "dim X=" << X.rows() << ";" << X.cols() << std::endl; 
+                        df.insert(DESIGN_MATRIX_BLK, X);     
+                    }
 
                     if(mean_estimation){
 
                         std::cout << "------------------MEAN REGRESSION-----------------" << std::endl;
 
-                        std::string gcv_path = data_path +  "/loc_" + nxx_loc  + "/AR_" + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type;  
-                        // std::cout << "gcv_path " << gcv_path << std::endl;
-                        std::string rmse_path = data_path +  "/loc_" + nxx_loc  + "/AR_" + AR_coeff + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
+                        std::string gcv_path = data_path +  "/loc_" + nxx_loc  + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type;  
+                        std::cout << "gcv_path " << gcv_path << std::endl;
+                        std::string rmse_path = data_path +  "/loc_" + nxx_loc  + AR_coeff + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
                         if(compute_gcv){
                             std::cout << "------------------gcv selection-----------------" << std::endl;
                             // Read lambda 
@@ -1927,7 +2334,16 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                 filefn << computedFn.format(CSVFormatfn);
                                 filefn.close();
                             }
-
+ 
+                            if(has_covariates){
+                                DMatrix<double> computedBeta = model_mean.beta();
+                                const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                std::ofstream filebeta(gcv_path + "/beta" + gcv_summary_tmp + norm_loss + ".csv");
+                                if(filebeta.is_open()){
+                                    filebeta << computedBeta.format(CSVFormatbeta);
+                                    filebeta.close();
+                                }
+                            }  
 
                         } 
                         if(compute_rmse){
@@ -1967,6 +2383,16 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                 filefn.close();
                             }
 
+                            if(has_covariates){
+                                DMatrix<double> computedBeta = model_mean.beta();
+                                const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                std::ofstream filebeta(rmse_path + "/beta" + norm_loss + ".csv");
+                                if(filebeta.is_open()){
+                                    filebeta << computedBeta.format(CSVFormatbeta);
+                                    filebeta.close();
+                                }
+                            }  
+
                         }
 
                     }
@@ -1976,7 +2402,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                         std::cout << "------------------QUANTILE REGRESSION-----------------" << std::endl; 
                     
                         if(compute_gcv){
-                            std::cout << "------------------run with gcv selected lambda-----------------" << std::endl;
+                            std::cout << "------------------run with lambda selected in gcv computation-----------------" << std::endl;
 
                             for(auto smooth_type : smooth_types_quantile){
                                 const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
@@ -2023,6 +2449,16 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                             filefn << computedFn.format(CSVFormatfn);
                                             filefn.close();
                                         }
+
+                                        if(has_covariates){
+                                            DMatrix<double> computedBeta = model_quantile.beta();
+                                            const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                            std::ofstream filebeta(gcv_path + "/beta" + gcv_summary_tmp + ".csv");
+                                            if(filebeta.is_open()){
+                                                filebeta << computedBeta.format(CSVFormatbeta);
+                                                filebeta.close();
+                                            }
+                                        }  
 
                                     }
                                 }
@@ -2073,6 +2509,17 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                         filefn.close();
                                     }
 
+
+                                    if(has_covariates){
+                                        DMatrix<double> computedBeta = model_quantile.beta();
+                                        const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filebeta(solution_mult_path + "/beta_all" + gcv_summary_tmp + ".csv");
+                                        if(filebeta.is_open()){
+                                            filebeta << computedBeta.format(CSVFormatbeta);
+                                            filebeta.close();
+                                        }
+                                    }  
+
                                 }
 
                             }
@@ -2088,7 +2535,7 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                     std::string alpha_string = std::to_string(alpha_int); 
 
                                     std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                    std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string+ "/RMSE/est" + diffusion_type;
+                                    std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/est" + diffusion_type;
                                     // Read lambda 
                                     double best_lambda;
                                     std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + ".csv");
@@ -2123,6 +2570,17 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                         filefn << computedFn.format(CSVFormatfn);
                                         filefn.close();
                                     }
+
+
+                                    if(has_covariates){
+                                        DMatrix<double> computedBeta = model_quantile.beta();
+                                        const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                        std::ofstream filebeta(rmse_path + "/beta.csv");
+                                        if(filebeta.is_open()){
+                                            filebeta << computedBeta.format(CSVFormatbeta);
+                                            filebeta.close();
+                                        }
+                                    }  
 
 
                                 }
@@ -2174,6 +2632,16 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
                                     filefn.close();
                                 }
 
+                                if(has_covariates){
+                                    DMatrix<double> computedBeta = model_quantile.beta();
+                                    const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                                    std::ofstream filebeta(solution_mult_path + "/beta_all.csv");
+                                    if(filebeta.is_open()){
+                                        filebeta << computedBeta.format(CSVFormatbeta);
+                                        filebeta.close();
+                                    }
+                                }  
+
                             }
                             
 
@@ -2181,330 +2649,23 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
                         }                    
 
-                    }                    
-                    
-                } 
-            } else{
+                    }                
 
-                std::string nxx_loc = chosen_nxx_loc; 
-
-                std::string data_path = R_path + "/" + data_type; 
-                DMatrix<double> loc = read_csv<double>(data_path + "/loc_" + nxx_loc + "/loc_" + nxx_loc + ".csv"); 
-                //std::cout << "locs size = " << loc.rows() << std::endl; 
-
-                DMatrix<double> y = read_csv<double>(data_path + "/loc_" + nxx_loc  + "/AR_" + AR_coeff + "/" + simulations_string +  "/sim_" + std::to_string(sim) + "/y.csv");
-                //std::cout << "size y in test =" << y.rows() << std::endl;
-
-                BlockFrame<double, int> df;
-                df.insert(OBSERVATIONS_BLK, y);
-
-                if(mean_estimation){
-
-                    std::cout << "------------------MEAN REGRESSION-----------------" << std::endl;
-
-                    std::string gcv_path = data_path +  "/loc_" + nxx_loc  + "/AR_" + AR_coeff + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/mean/" + smooth_type_mean + "/est" + diffusion_type;  
-                    std::cout << "gcv_path " << gcv_path << std::endl;
-                    std::string rmse_path = data_path +  "/loc_" + nxx_loc  + "/AR_" + AR_coeff + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/mean/RMSE/est" + diffusion_type; 
-                    if(compute_gcv){
-                        std::cout << "------------------gcv selection-----------------" << std::endl;
-                        // Read lambda 
-                        double best_lambda;
-                        std::cout << "gcv_summary_tmp=" << gcv_summary_tmp << std::endl; 
-                        std::cout << gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv" << std::endl; 
-                        std::ifstream fileLambda(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + norm_loss + ".csv");
-                        if(fileLambda.is_open()){
-                            fileLambda >> best_lambda; 
-                            fileLambda.close();
-                        }
-                        std::cout << "best lambda=" << best_lambda << std::endl; 
-
-                        SRPDE model_mean(problem, Sampling::pointwise);
-                        model_mean.set_lambda_D(best_lambda);
-                        // set model's data
-                        model_mean.set_spatial_locations(loc);  
-                        model_mean.set_data(df);           
-                        // solve smoothing problem
-                        model_mean.init();
-                        model_mean.solve();
-
-                        // save
-                        DMatrix<double> computedF = model_mean.f();
-                        const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                        std::ofstream filef(gcv_path + "/f" + gcv_summary_tmp + norm_loss + ".csv");
-                        if(filef.is_open()){
-                            filef << computedF.format(CSVFormatf);
-                            filef.close();
-                        }
-
-                        DMatrix<double> computedFn = model_mean.Psi()*model_mean.f();
-                        const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                        std::ofstream filefn(gcv_path + "/fn" + gcv_summary_tmp + norm_loss + ".csv");
-                        if(filefn.is_open()){
-                            filefn << computedFn.format(CSVFormatfn);
-                            filefn.close();
-                        }
-
-
-                    } 
-                    if(compute_rmse){
-                        std::cout << "------------------rmse selection-----------------" << std::endl;
-                        // Read lambda 
-                        double best_lambda;
-                        std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + norm_loss + ".csv");
-                        if(fileLambda.is_open()){
-                            fileLambda >> best_lambda; 
-                            fileLambda.close();
-                        }
-                        std::cout << "best lambda=" << best_lambda << std::endl; 
-
-                        SRPDE model_mean(problem, Sampling::pointwise);
-                        model_mean.set_lambda_D(best_lambda);
-                        // set model's data
-                        model_mean.set_spatial_locations(loc);
-                        model_mean.set_data(df);
-                        // solve smoothing problem
-                        model_mean.init();
-                        model_mean.solve();
-
-                        // save
-                        DMatrix<double> computedF = model_mean.f();
-                        const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                        std::ofstream filef(rmse_path + "/f" + norm_loss + ".csv");
-                        if(filef.is_open()){
-                            filef << computedF.format(CSVFormatf);
-                            filef.close();
-                        }
-
-                        DMatrix<double> computedFn = model_mean.Psi()*model_mean.f();
-                        const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                        std::ofstream filefn(rmse_path + "/fn" + norm_loss + ".csv");
-                        if(filefn.is_open()){
-                            filefn << computedFn.format(CSVFormatfn);
-                            filefn.close();
-                        }
-
-                    }
 
                 }
-        
-                if(quantile_estimation){
 
-                    std::cout << "------------------QUANTILE REGRESSION-----------------" << std::endl; 
-                
-                    if(compute_gcv){
-                        std::cout << "------------------run with lambda selected in gcv computation-----------------" << std::endl;
-
-                        for(auto smooth_type : smooth_types_quantile){
-                            const int eps_power = std::stoi(smooth_type.substr(smooth_type.size() - 2));
-                            if(single){
-                                for(auto alpha : alphas){
-
-                                    unsigned int alpha_int = alpha*100; 
-                                    std::string alpha_string = std::to_string(alpha_int); 
-
-                                    std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                    std::string gcv_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/" + smooth_type + "/est" + diffusion_type;
-                                    // Read lambda 
-                                    double best_lambda;
-                                    std::ifstream fileLambda(gcv_path + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
-                                    if(fileLambda.is_open()){
-                                        fileLambda >> best_lambda; 
-                                        fileLambda.close();
-                                    }
-                                    std::cout << "best lambda=" << best_lambda << std::endl; 
-
-                                    QSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alpha);
-                                    model_quantile.set_lambda_D(best_lambda);
-                                    // set model's data
-                                    model_quantile.set_spatial_locations(loc);  
-                                    model_quantile.set_data(df);    
-                                    
-                                    // solve smoothing problem
-                                    model_quantile.init();
-                                    model_quantile.solve();
-
-                                    // save
-                                    DMatrix<double> computedF = model_quantile.f();
-                                    const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                    std::ofstream filef(gcv_path + "/f" + gcv_summary_tmp + ".csv");
-                                    if(filef.is_open()){
-                                        filef << computedF.format(CSVFormatf);
-                                        filef.close();
-                                    }
-
-                                    DMatrix<double> computedFn = model_quantile.Psi()*model_quantile.f();
-                                    const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                    std::ofstream filefn(gcv_path + "/fn" + gcv_summary_tmp + ".csv");
-                                    if(filefn.is_open()){
-                                        filefn << computedFn.format(CSVFormatfn);
-                                        filefn.close();
-                                    }
-
-                                }
-                            }
-                            if(multiple){
-
-                                MQSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alphas);
-                                std::string solution_mult_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/mult_est" + diffusion_type;
-                                std::string lambda_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/" + smooth_type + "/single_est" + diffusion_type;
-
-                                // use optimal lambda to avoid possible numerical issues
-                                DMatrix<double> lambdas;
-                                DVector<double> lambdas_temp; 
-                                lambdas_temp.resize(alphas.size());
-                                for(std::size_t idx = 0; idx < alphas.size(); ++idx){
-                                    unsigned int alpha_int = alphas[idx]*100;  
-                                    std::ifstream fileLambdas(lambda_path  + "/alpha_" + std::to_string(alpha_int) + "/lambda_s_opt" + gcv_summary_tmp + ".csv");
-                                    if(fileLambdas.is_open()){
-                                        fileLambdas >> lambdas_temp(idx); 
-                                        fileLambdas.close();
-                                    }
-                                }
-                                lambdas = lambdas_temp;                
-                                model_quantile.setLambdas_D(lambdas);
-
-                                // set model data
-                                model_quantile.set_data(df);
-                                model_quantile.set_spatial_locations(loc); 
-                                model_quantile.set_gamma_init(gamma0);  
-
-                                // solve smoothing problem
-                                model_quantile.init();
-                                model_quantile.solve();
-
-                                // Save solution
-                                DMatrix<double> computedF = model_quantile.f();
-                                const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                std::ofstream filef(solution_mult_path + "/f_all" + gcv_summary_tmp + ".csv");
-                                if(filef.is_open()){
-                                    filef << computedF.format(CSVFormatf);
-                                    filef.close();
-                                }
-
-                                DMatrix<double> computedFn = model_quantile.Psi_mult()*model_quantile.f();
-                                const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                std::ofstream filefn(solution_mult_path + "/fn_all" + gcv_summary_tmp + ".csv");
-                                if(filefn.is_open()){
-                                    filefn << computedFn.format(CSVFormatfn);
-                                    filefn.close();
-                                }
-
-                            }
-
-                        }
-                    } 
-                    if(compute_rmse){
-                        std::cout << "------------------rmse computation-----------------" << std::endl;
-                        
-                        if(single){
-
-                            for(auto alpha : alphas){
-
-                                unsigned int alpha_int = alpha*100; 
-                                std::string alpha_string = std::to_string(alpha_int); 
-
-                                std::cout << "------------------alpha=" << alpha_string << "-----------------" << std::endl; 
-                                std::string rmse_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/alpha_" + alpha_string + "/RMSE/est" + diffusion_type;
-                                // Read lambda 
-                                double best_lambda;
-                                std::ifstream fileLambda(rmse_path + "/lambda_s_opt" + ".csv");
-                                if(fileLambda.is_open()){
-                                    fileLambda >> best_lambda; 
-                                    fileLambda.close();
-                                }
-                                std::cout << "best lambda=" << best_lambda << std::endl; 
-
-                                QSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alpha);
-                                model_quantile.set_lambda_D(best_lambda);
-                                // set model's data
-                                model_quantile.set_spatial_locations(loc);  
-                                model_quantile.set_data(df);           
-                                // solve smoothing problem
-                                model_quantile.init();
-                                model_quantile.solve();
-
-                                // save
-                                DMatrix<double> computedF = model_quantile.f();
-                                const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                std::ofstream filef(rmse_path + "/f.csv");
-                                if(filef.is_open()){
-                                    filef << computedF.format(CSVFormatf);
-                                    filef.close();
-                                }
-
-                                DMatrix<double> computedFn = model_quantile.Psi()*model_quantile.f();
-                                const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                                std::ofstream filefn(rmse_path + "/fn.csv");
-                                if(filefn.is_open()){
-                                    filefn << computedFn.format(CSVFormatfn);
-                                    filefn.close();
-                                }
-
-
-                            }
-                        }
-                        if(multiple){
-
-                            MQSRPDE<SpaceOnly> model_quantile(problem, Sampling::pointwise, alphas);
-                            std::string solution_mult_path = data_path +  "/loc_" + nxx_loc + "/"  + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/mult_est" + diffusion_type;
-                            std::string lambda_path = data_path +  "/loc_" + nxx_loc + "/" + simulations_string + "/sim_" + std::to_string(sim) + "/quantile/RMSE/single_est" + diffusion_type;
-
-                            // use optimal lambda to avoid possible numerical issues
-                            DMatrix<double> lambdas;
-                            DVector<double> lambdas_temp; 
-                            lambdas_temp.resize(alphas.size());
-                            for(std::size_t idx = 0; idx < alphas.size(); ++idx){
-                                unsigned int alpha_int = alphas[idx]*100;  
-                                std::ifstream fileLambdas(lambda_path + "/alpha_" + std::to_string(alpha_int) +  "/lambda_s_opt.csv");
-                                if(fileLambdas.is_open()){
-                                    fileLambdas >> lambdas_temp(idx); 
-                                    fileLambdas.close();
-                                }
-                            }
-                            lambdas = lambdas_temp;                
-                            model_quantile.setLambdas_D(lambdas);
-
-                            // set model data
-                            model_quantile.set_data(df);
-                            model_quantile.set_spatial_locations(loc); 
-                            model_quantile.set_gamma_init(gamma0);  
-
-                            // solve smoothing problem
-                            model_quantile.init();
-                            model_quantile.solve();
-
-                            // Save solution
-                            DMatrix<double> computedF = model_quantile.f();
-                            const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                            std::ofstream filef(solution_mult_path + "/f_all.csv");
-                            if(filef.is_open()){
-                                filef << computedF.format(CSVFormatf);
-                                filef.close();
-                            }
-
-                            DMatrix<double> computedFn = model_quantile.Psi_mult()*model_quantile.f();
-                            const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                            std::ofstream filefn(solution_mult_path + "/fn_all.csv");
-                            if(filefn.is_open()){
-                                filefn << computedFn.format(CSVFormatfn);
-                                filefn.close();
-                            }
-
-                        }
-                        
-
-
-
-                    }                    
-
-                }                
-
-
+                                
             }
 
-                            
+             
+
+
         }
-                         
+
+
+
+
+
 
     }
 

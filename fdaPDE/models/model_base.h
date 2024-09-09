@@ -41,11 +41,10 @@ template <typename Model> class ModelBase {
     void init() {
         if (model().runtime().query(runtime_status::require_penalty_init)) { model().init_regularization(); }
         if (model().runtime().query(runtime_status::require_functional_basis_evaluation)) {
-
             model().init_sampling(true);   // init \Psi matrix, always force recomputation
         }
 	model().analyze_data();    // specific data-dependent initialization requested by Model
-	if (model().runtime().query(runtime_status::require_psi_correction)) { std::cout << "psi correction required.." << std::endl; model().correct_psi(); }
+	if (model().runtime().query(runtime_status::require_psi_correction)) { model().correct_psi(); }
         model().init_model();
 	// clear all dirty bits in blockframe
 	for(const auto& BLK : df_.dirty_cols()) df_.clear_dirty_bit(BLK);

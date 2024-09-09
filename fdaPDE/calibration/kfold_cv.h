@@ -79,7 +79,47 @@ class KCV : public CalibratorBase<KCV> {
         // reserve space for CV scores
         scores_.resize(K_, lambdas.rows());
         if (shuffle_) {   // perform a first shuffling of the data if required
-            model.set_data(model.data().shuffle(seed_));
+            std::cout << "shuffling data" << std::endl; // M 
+            //model.set_data(model.data().shuffle(seed_));  
+
+            std::vector<int> random_indexes; 
+            model.set_data(model.data().shuffle(seed_, random_indexes)); // updates random_indexes too
+
+            std::cout << "shuffling locations" << std::endl; // M 
+            //std::cout << "size random_indexes = " << random_indexes.size() << std::endl; 
+            DMatrix<double> shuffle_locs; 
+            shuffle_locs.resize(model.locs().rows(), model.locs().cols()); 
+            for(int i=0; i<random_indexes.size(); ++i){
+                int idx = random_indexes[i]; 
+                shuffle_locs(i,0) = model.locs()(idx,0);
+                shuffle_locs(i,1) = model.locs()(idx,1);
+            }
+
+            model.set_spatial_locations(shuffle_locs);
+
+            // std::cout << "re-initialize the model" << std::endl; 
+            // model.init(); 
+            
+            std::cout << "recomputing psi in kfold" << std::endl; 
+            model.init_sampling(true);   // init \Psi matrix, always force recomputation
+
+            std::cout << "reinitialize the model in kfold" << std::endl; 
+            model.init_model();
+
+            std::cout << "recmopute weights in kfold" << std::endl; 
+            model.analyze_data();    
+            
+            // check 
+            std::cout << "print head of random_indexes" << std::endl; 
+            for(int i=0; i<4; ++i){
+                std::cout << "idx_" << i << " = " << random_indexes[i] << std::endl; 
+            }
+            
+            std::cout << "print head of shuffled locs" << std::endl; 
+            for(int i=0; i<4; ++i){
+                std::cout << "loc_" << i << " = " << model.locs()(i,0) << "," << model.locs()(i,1) << std::endl; 
+            }
+            std::cout << "---------" << std::endl; 
 	}
         // cycle over all tuning parameters
         for (int j = 0; j < lambdas.rows(); ++j) {

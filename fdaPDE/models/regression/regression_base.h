@@ -70,7 +70,7 @@ class RegressionBase :
     DVector<double> beta_ {};   // estimate of the coefficient vector (1 x q vector)
 
     // M 
-    std::string gcv_approach_ = "I";    
+    std::string gcv_approach_ = "first";    
 
    public:
     using Base = typename select_regularization_base<Model, RegularizationType>::type;
@@ -87,6 +87,7 @@ class RegressionBase :
     using SamplingBase<Model>::X_reduced;   // M
     using SamplingBase<Model>::unique_locs_flags;   // M
     using SamplingBase<Model>::num_unique_locs;     // M 
+    using SamplingBase<Model>::num_obs_per_location;     // M 
     using Base::model;
 
     RegressionBase() = default;
@@ -189,10 +190,12 @@ class RegressionBase :
         return T_;
     }
     const DMatrix<double>& T_reduced() {   // T = \Psi^\top*Q*\Psi + P
-        if(gcv_approach_ == "III"){
-            auto diag_vec = DVector<double>::Ones(num_unique_locs()).asDiagonal(); 
+        if(gcv_approach_ == "third"){
+            std::cout << "T reduced for third approach" << std::endl; 
+            auto diag_vec = num_obs_per_location().asDiagonal();  // ATT c'era DVector<double>::Ones(num_unique_locs())!! 
             T_reduced_ = PsiTD_reduced(not_nan())*diag_vec*lmbQ_reduced(Psi_reduced(not_nan())) + P();
         } else{
+            std::cout << "T reduced for second approach" << std::endl; 
             T_reduced_ = PsiTD_reduced(not_nan())*lmbQ_reduced(Psi_reduced(not_nan())) + P();
         }
         
@@ -243,6 +246,7 @@ class RegressionBase :
 
     // M 
     const std::string gcv_approach() const { 
+         std::cout << "getter Base = " << gcv_approach_ << std::endl; 
         return gcv_approach_; 
     }; 
     // M 

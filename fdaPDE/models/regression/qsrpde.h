@@ -71,10 +71,10 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     // M 
     void gcv_oss_rip_strategy_set(const std::string str){
 
-        gcv_oss_rip_I_strategy = (str=="I"); 
-        gcv_oss_rip_II_strategy = (str=="II"); 
-        gcv_oss_rip_III_strategy = (str=="III"); 
-        gcv_oss_rip_IV_strategy = (str=="IV"); 
+        gcv_oss_rip_I_strategy = (str=="first"); 
+        gcv_oss_rip_II_strategy = (str=="second"); 
+        gcv_oss_rip_III_strategy = (str=="third"); 
+        gcv_oss_rip_IV_strategy = (str=="fourth"); 
 
         Base::gcv_approach_set(str); 
     }

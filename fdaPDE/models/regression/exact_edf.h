@@ -38,21 +38,21 @@ class ExactEDF {
         // std::cout << "-----------------------EXACT GCV running-------------------------------" << std::endl; 
         // factorize matrix T
 
-        if(gcv_approach_ == "I"){
+        if(gcv_approach_ == "first"){
             std::cout << "smoothing matrix computation with I strategy" << std::endl;
             invT_ = model_.T().partialPivLu();
             DMatrix<double> E_ = model_.PsiTD();    // need to cast to dense for PartialPivLU::solve()
             S_ = model_.lmbQ(model_.Psi() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
         }
 
-        if(gcv_approach_ == "II" || gcv_approach_ == "III"){   // NB: funziona solo space-only (maschere per NA obs non corrette)
+        if(gcv_approach_ == "second" || gcv_approach_ == "third"){   // NB: funziona solo space-only (maschere per NA obs non corrette)
             std::cout << "smoothing matrix computation with " << gcv_approach_ << " strategy" << std::endl;
             invT_ = model_.T_reduced().partialPivLu();
             DMatrix<double> E_ = model_.PsiTD_reduced();    // need to cast to dense for PartialPivLU::solve()
             S_ = model_.lmbQ_reduced(model_.Psi_reduced() * invT_.solve(E_));   // \Psi*T^{-1}*\Psi^T*Q
         } 
 
-        if(gcv_approach_ == "IV"){
+        if(gcv_approach_ == "fourth"){
             std::cout << "smoothing matrix computation with IV strategy" << std::endl;
             invT_ = model_.T().partialPivLu();
             DMatrix<double> E_ = model_.PsiTD_reduced();    // need to cast to dense for PartialPivLU::solve()
@@ -74,7 +74,7 @@ class ExactEDF {
     const DMatrix<double>& S_get() const { return S_; }   // return S
 
     // M 
-    void gcv_approach_set_trace(std::string gcv_approach) { 
+    void gcv_approach_set_trace(const std::string& gcv_approach) { 
         std::cout << "Setting strategy GCV in exact_edf.h" << std::endl; 
         std::cout << "string value = " << gcv_approach << std::endl; 
         gcv_approach_ = gcv_approach; 

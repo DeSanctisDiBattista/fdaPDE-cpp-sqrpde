@@ -36,8 +36,8 @@ class RMSE {
     double eps_; 
    public:
     RMSE() = default;
-    template <typename ModelType> RMSE(const ModelType& model, double alpha, double eps) : model_(model), alpha_(alpha), eps_(eps) {};
-    // template <typename ModelType> RMSE(const ModelType& model) : model_(model) {};
+    //template <typename ModelType> RMSE(const ModelType& model, double alpha, double eps) : model_(model), alpha_(alpha), eps_(eps) {};
+    template <typename ModelType> RMSE(const ModelType& model) : model_(model) {};
     template <typename ModelType> void set_model(const ModelType& model) { model_ = model; }
 
     double operator()(
@@ -60,22 +60,22 @@ class RMSE {
                 double hat_y = model_.Psi().row(i) * model_.f();   // non-parametric field evaluation at i-th location
                 if (model_.has_covariates()) { hat_y += model_.X().row(i) * model_.beta(); }
 
-                    // rmse += std::pow(model_.y()(i, 0) - hat_y, 2);
+                    rmse += std::pow(model_.y()(i, 0) - hat_y, 2);
 
-                    // M 
-                    rmse += pinball(model_.y()(i, 0) - hat_y, eps_);  
+                    // // M 
+                    // rmse += pinball(model_.y()(i, 0) - hat_y, eps_);  
 
                 n++;
             }
         }
 
-        // return std::sqrt(rmse / n);   // \sqrt{\frac{norm(y - \hat y)^2/}{n}}
+        return std::sqrt(rmse / n);   // \sqrt{\frac{norm(y - \hat y)^2/}{n}}
 
-        return rmse / n;   // M ATT: è la pinball, non rmse
+        // return rmse / n;   // M ATT: è la pinball, non rmse
    
     }
 
-
+    // M 
     // smoothed pinball version
     double pinball(double x, double eps) const {   // quantile check function
         return (alpha_ - 1) * x + eps * fdapde::log1pexp(x / eps);

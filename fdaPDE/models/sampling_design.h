@@ -45,14 +45,12 @@ template <typename Model> class SamplingBase {
 
     SpMatrix<double> Psi_reduced_;   
     SpMatrix<double> PsiTD_reduced_;  
-    DMatrix<double> X_II_approach_;  
     DMatrix<double> X_reduced_;   
 
     DiagMatrix<double> D_;         // for areal sampling, diagonal matrix of subdomains' measures, D_ = I_n otherwise
     DMatrix<double> locs_;         // matrix of spatial locations p_1, p2_, ... p_n, or subdomains D_1, D_2, ..., D_n
 
     std::vector<bool> unique_locs_flags_; // zeros identify repeated locations 
-    std::vector<unsigned int> idxs_repeated_locs_; // vector containing the indexes in {1..n*} of the repeated locations
     unsigned int num_unique_locs_ = 0;
     DVector<double> num_obs_per_location_;  // number of observations in each location
 
@@ -92,7 +90,14 @@ template <typename Model> class SamplingBase {
             D_ = DVector<double>::Ones(Psi_.rows()).asDiagonal();
   	  } return;
         case Sampling::pointwise: {   // data sampled at general locations p_1, p_2, ... p_n
-            // query pde to evaluate functional basis at given locations
+
+            //std::cout << "dim loc_ in init_sampling " << locs_.rows() << ";" << locs_.cols() << std::endl; 
+            // std::cout << "print head of locs_ in init_sampling" << std::endl; 
+            // for(int i=0; i<4; ++i){
+            //     std::cout << "loc_" << i << " = " << locs_(i,0) << "," << locs_(i,1) << std::endl; 
+            // }
+
+            // query pde to evaluate functional basis at given locations 
             auto basis_evaluation = model().pde().eval_basis(core::eval::pointwise, locs_);
             Psi_ = basis_evaluation->Psi;
             model().tensorize_psi();   // tensorize \Psi for space-time problems
@@ -124,27 +129,28 @@ template <typename Model> class SamplingBase {
 
         // M:
         // fill the unique_locs_flags_ vector
+        unique_locs_flags_.resize(locs_.rows()); 
         bool new_loc; 
+        std::vector<unsigned int> idxs_repeated_locs_;
         for(std::size_t i = 0; i < locs_.rows(); ++i) {
             if(i==0){
                 new_loc = true;  
             } else{
                 new_loc = !( almost_equal(locs_.coeff(i,0), locs_.coeff(i-1,0)) && almost_equal(locs_.coeff(i,1), locs_.coeff(i-1,1)) ); 
             }
-            unique_locs_flags_.push_back(new_loc);  
+            unique_locs_flags_[i] = new_loc;  
 
             if(!new_loc)
                 idxs_repeated_locs_.push_back(i); 
         }
 
         // compute num_unique_locs_
-        if(num_unique_locs_ == 0){  // non ancora calcolato
-            for(auto idx = 0; idx < unique_locs_flags_.size(); ++idx){
-                if(unique_locs_flags_[idx] == 1){
-                    num_unique_locs_++; 
-                }
+        num_unique_locs_ = 0; 
+        for(auto idx = 0; idx < unique_locs_flags_.size(); ++idx){
+            if(unique_locs_flags_[idx] == 1){
+                num_unique_locs_++; 
             }
-        } 
+        }     
 
         num_obs_per_location_.resize(num_unique_locs_); 
         unsigned int obs_counter = 1;  // because the first is skipped
@@ -157,60 +163,19 @@ template <typename Model> class SamplingBase {
                 obs_counter = 0;
             } 
             obs_counter++; 
-        }
+        }      
         //std::cout << "obs in loc " << num_unique_locs_ << "=" << obs_counter << std::endl; 
         num_obs_per_location_[num_unique_locs_-1] = obs_counter; 
-
 
         //compute the reduced Psi matrix in case of repeated observations
         if(num_unique_locs() != n_spatial_locs()){
         
-            Psi_reduced_ = remove_rows(Psi_);
+            Psi_reduced_ = remove_rows(Psi_); 
             PsiTD_reduced_ = remove_rows(SpMatrix<double>(PsiTD_.transpose())).transpose(); // per PsiTD dobbiamo rimuovere colonne -> passo trasposto e poi rifacciamo trasposto
-            if(model().has_covariates()){
-                X_reduced_ = remove_rows(model().X(), idxs_repeated_locs_); 
-
-                // assemble X_II_approach (una volta controllato che X_reduced è uguale, cancellare II_approach)
-                unsigned int count = 0; 
-                X_II_approach_.resize(num_unique_locs(), model().q());
-                count = 0; 
-                for(std::size_t i = 0; i < locs_.rows(); ++i) {
-                    if(unique_locs_flags_[i]){
-                        for(int j = 0; j < model().X().cols(); ++j){
-                            X_II_approach_(count,j) = model().X().coeff(i, j);
-                        }
-                        count ++;
-                    }
-
-                }
-
-                // check 
-                double max_X = 0.; 
-                for(int i = 0; i < X_II_approach_.rows(); ++i){
-                    for(int j = 0; j < X_II_approach_.cols(); ++j){
-                        double abs_diff = std::abs(X_II_approach_.coeff(i,j)-X_reduced_.coeff(i,j)); 
-                        if(abs_diff > max_X){
-                            max_X = abs_diff; 
-                        }
-                        if(std::isnan(abs_diff))
-                            std::cout << "avvistati nana in diff X!!" << std::endl; 
-                    }
-                }
-                if(max_X > 1e-10){
-                    std::cout << "WRONG IMPLEMENTATION OF X reduced" << std::endl; 
-                } else{
-                    std::cout << "OK IMPLEMENTATION OF X reduced" << std::endl;
-                }   
-
-
-            }
-
-
-
- 
-
-        
             
+            if(model().has_covariates()){
+                X_reduced_ = remove_rows(model().X(), idxs_repeated_locs_);
+            }
 
         }
 
@@ -236,7 +201,6 @@ template <typename Model> class SamplingBase {
     const DMatrix<double> remove_rows(DMatrix<double> mat, std::vector<unsigned int> row_indexes_to_remove) {
         // Given the matrix mat, and a vector of row indexes row_indexes_to_remove, returns the matrix 
         // without the rows in row_indexes_to_remove
-        std::cout << "remove rows dense matrix" << std::endl; 
         for(unsigned int rowToRemove : row_indexes_to_remove){
             if(rowToRemove < mat.rows()){
                 removeRow(mat, rowToRemove); 
@@ -264,7 +228,7 @@ template <typename Model> class SamplingBase {
     const SpMatrix<double> remove_rows(SpMatrix<double> mat) {
         // Given the matrix mat, and a vector of row indexes row_indexes_to_remove, returns the matrix 
         // without the rows in row_indexes_to_remove
-        std::cout << "remove rows sparse matrix" << std::endl; 
+        //std::cout << "remove rows sparse matrix" << std::endl; 
         SpMatrix<double> mat_ret; 
         mat_ret.resize(num_unique_locs(), mat.cols()); 
         unsigned int count = 0; 
