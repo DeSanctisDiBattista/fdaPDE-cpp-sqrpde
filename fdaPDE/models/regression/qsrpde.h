@@ -204,17 +204,35 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
         double result = 0;
 
-
         if(!gcv_oss_rip_I_strategy){
 
             std::cout << "Running GCV per obs ripetute" << std::endl;
 
+            // // pinball delle medie empiriche
+            // DVector<double> fit_reduced = skip_repeated_locs(op1);
+            // DVector<double> summary_vec = compute_summary_data(); 
+            // for (int i = 0; i < Base::num_unique_locs(); ++i) {
+            //     result += pinball_loss(summary_vec[i] - fit_reduced(i), std::pow(10, eps_));
+            // }
+
+            // media delle pinball 
             DVector<double> fit_reduced = skip_repeated_locs(op1);
-            DVector<double> summary_vec = compute_summary_data(); 
+
+            DVector<double> obs_per_loc_vec = Base::num_obs_per_location(); 
 
             for (int i = 0; i < Base::num_unique_locs(); ++i) {
-                result += pinball_loss(summary_vec[i] - fit_reduced(i), std::pow(10, eps_));
+
+                double mean_pinball_i = 0.;
+                unsigned int n_i = obs_per_loc_vec[i]; 
+                for(int j = 0; j < n_i; ++j){
+                    mean_pinball_i += pinball_loss(op2.coeff(j, 0) - op1.coeff(j, 0), std::pow(10, eps_)); 
+                } 
+                mean_pinball_i /= n_i; 
+
+                result += mean_pinball_i;
             }
+
+
         } else{
             std::cout << "Running GCV I strategy" << std::endl;
             for (int i = 0; i < n_locs(); ++i) {

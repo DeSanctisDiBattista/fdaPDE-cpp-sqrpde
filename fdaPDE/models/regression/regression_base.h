@@ -192,7 +192,12 @@ class RegressionBase :
     const DMatrix<double>& T_reduced() {   // T = \Psi^\top*Q*\Psi + P
         if(gcv_approach_ == "third"){
             std::cout << "T reduced for third approach" << std::endl; 
-            auto diag_vec = num_obs_per_location().asDiagonal();  // ATT c'era DVector<double>::Ones(num_unique_locs())!! 
+            auto diag_vec = num_obs_per_location().asDiagonal();   
+            // std::cout << "diag_vec = " << std::endl; 
+            // for(int i = 0; i < num_obs_per_location().size(); ++i){
+            //     std::cout << num_obs_per_location()[i] << ";" << std::endl; 
+            // }
+
             T_reduced_ = PsiTD_reduced(not_nan())*diag_vec*lmbQ_reduced(Psi_reduced(not_nan())) + P();
         } else{
             std::cout << "T reduced for second approach" << std::endl; 
@@ -265,9 +270,9 @@ class RegressionBase :
         
     }
     // M 
-    void XtWX_reduced_set(DMatrix<double> XtWX_II_appr){ 
-        XtWX_reduced_ = XtWX_II_appr; 
-        invXtWX_reduced_ = XtWX_reduced_.partialPivLu();
+    void XtWX_reduced_set(DMatrix<double> XtWX_reduced){ 
+        XtWX_reduced_ = XtWX_reduced; 
+        invXtWX_reduced_ = XtWX_reduced.partialPivLu();
     }
     void invA_reduced_set(){ 
         A_reduced_ = SparseBlockMatrix<double, 2, 2>(

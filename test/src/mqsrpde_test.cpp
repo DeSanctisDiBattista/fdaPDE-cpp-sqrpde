@@ -1775,19 +1775,19 @@ using fdapde::testing::read_csv;
 //    order FE:     1
 TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
 
-    bool mean_estimation = true;
+    bool mean_estimation = false;
     bool quantile_estimation = !mean_estimation;  
 
     std::string AR_coeff = "";   // "/AR_0.9"
 
-    bool has_covariates = true;
+    bool has_covariates = false;
     DVector<double> beta_true; 
     beta_true.resize(2); 
     beta_true << 1.0, -1.0; 
 
-    std::string test_str = "3";  
+    std::string test_str = "9";  
 
-    std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
+    std::string norm_loss = "";   // "" "_norm_loss"    // for SRPDE
 
     std::vector<std::string> nxx_vec = {"13"}; 
     const std::string chosen_max_repetion = "10"; 
@@ -1825,16 +1825,16 @@ TEST(msqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gride
 
     const double gamma0 = 1.;    // crossing penalty   
 
-    std::vector<std::string> gcv_summaries = {"10CV", "_I_appr",  "_II_appr", "_III_appr", "_IV_appr"}; 
+    std::vector<std::string> gcv_summaries = {"_I_appr",  "_II_appr", "_III_appr", "_IV_appr"}; 
 
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
     
     bool compute_rmse = true;
-    bool compute_gcv = false;    
+    bool compute_gcv = true;    
 
-    const unsigned int n_sim = 15;
+    const unsigned int n_sim = 10;
 
     // define domain
     std::string domain_str; 

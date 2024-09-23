@@ -135,6 +135,9 @@ class SRPDE : public RegressionBase<SRPDE, SpaceOnly> {
             std::cout << "Running GCV con obs summarizzate in SRPDE" << std::endl; 
             DVector<double> fit_reduced = skip_repeated_locs(op1);
             DVector<double> summary_vec = compute_summary_data(); 
+            // std::cout << "summary_vec = " << summary_vec << std::endl; 
+
+
             result = (fit_reduced - summary_vec).squaredNorm();  
         } else{
             std::cout << "Running GCV con tutte obs in SRPDE" << std::endl;

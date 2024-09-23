@@ -1516,20 +1516,20 @@ DMatrix<double> collapse_rows(DMatrix<double> m, std::vector<bool> unique_flags,
 //    order FE:     1
 TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gridexact) {
            
-    bool mean_estimation = true;    // false implies that QSRPDE is run!
+    bool mean_estimation = false;    // false implies that QSRPDE is run!
     bool quantile_estimation = !mean_estimation;  
 
     std::string AR_coeff = "";   // "/AR_0.9"
 
-    bool has_covariates = true; 
+    bool has_covariates = false; 
     DVector<double> beta_true; 
     beta_true.resize(2); 
     beta_true << 1.0, -1.0; 
     // nb: nel caso semiparametrico l'RMSE viene calcolato sulle locazioni 
 
-    std::string test_str = "3";  
+    std::string test_str = "9";  
 
-    std::string norm_loss = "_norm_loss";   // "" "_norm_loss"    // for SRPDE
+    std::string norm_loss = "";   // "" "_norm_loss"    // for SRPDE
 
     // path test  
     std::string R_path; 
@@ -1574,17 +1574,17 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     // quantile parameters 
     std::vector<double> alphas = {0.5, 0.95};
 
-    std::vector<std::string> gcv_summaries = {"_II_appr", "_III_appr", "_IV_appr"};   // "10CV", "_I_appr",  "_II_appr", "_III_appr", "_IV_appr"  
+    std::vector<std::string> gcv_summaries = {"_I_appr", "_II_appr", "_III_appr", "_IV_appr"};   // "10CV", "_I_appr",  "_II_appr", "_III_appr", "_IV_appr"  
     unsigned int num_folds = 10;
 
     // model selection parameters
     std::string smooth_type_mean = "GCV";    
     std::vector<std::string> smooth_types_quantile = {"GCV_eps1e-1"};   
 
-    bool compute_rmse = false;
+    bool compute_rmse = true;
     bool compute_gcv = true;    
 
-    const unsigned int n_sim = 15;
+    const unsigned int n_sim = 10;
 
     // define domain
     std::string domain_str; 
@@ -1600,7 +1600,7 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
     for(double x = -11.0; x <= 2.0; x += 0.1) lambdas_mean.push_back(std::pow(10, x));
 
     std::vector<double> lambdas_quantile;
-    for(double x = -9.5; x <= -1.5; x += 0.1) lambdas_quantile.push_back(std::pow(10, x));
+    for(double x = -9.5; x <= -1.5; x += 0.2) lambdas_quantile.push_back(std::pow(10, x));
 
     double best_lambda; 
 
@@ -1646,7 +1646,6 @@ TEST(gcv_sqrpde_test_obs_rip, pde_nonparametric_samplingatlocations_spaceonly_gr
                 }
 
                 if(data_type == ("data_rip_" + chosen_max_repetion)){    // data_rip_10
-                    std::cout << "hola 1" << std::endl; 
                     for(std::string nxx_loc : nxx_vec){
                         
                         std::string data_path = R_path + "/" + data_type; 

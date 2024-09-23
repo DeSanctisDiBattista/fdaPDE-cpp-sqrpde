@@ -206,6 +206,8 @@ template <typename Model> class SamplingBase {
                 removeRow(mat, rowToRemove); 
                 // decrease the indexes to remove by one since a row has been eliminated
                 std::transform(std::begin(row_indexes_to_remove),std::end(row_indexes_to_remove),std::begin(row_indexes_to_remove),[](unsigned int x){return x-1;});
+                // note: the previous indexes to remove are currupted by this, since they are also decremented by one, but they are not used anymore
+
             } else{
                 std::cout << "Error: row to remove exceeds the matrix size" << std::endl; 
             }        
@@ -226,9 +228,7 @@ template <typename Model> class SamplingBase {
     }
 
     const SpMatrix<double> remove_rows(SpMatrix<double> mat) {
-        // Given the matrix mat, and a vector of row indexes row_indexes_to_remove, returns the matrix 
-        // without the rows in row_indexes_to_remove
-        //std::cout << "remove rows sparse matrix" << std::endl; 
+        // Given the sparse matrix mat returns the matrix with rows removed according to unique_locs_flags_
         SpMatrix<double> mat_ret; 
         mat_ret.resize(num_unique_locs(), mat.cols()); 
         unsigned int count = 0; 
