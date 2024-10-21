@@ -91,16 +91,22 @@ template <typename Model_> class FPIRLS {
             solver_.solve();
             // solve weighted least square problem
             m_->fpirls_update_step(solver_.fitted(), solver_.beta());   // model specific update step
+
+            // debug 
+            m_->set_loss_each_iter(m_->data_loss()); 
+            m_->set_pdemisfit_each_iter(m_->ftPf(m_->lambda(), solver_.f(), solver_.g())); 
+
             // update objective functional J = data_loss + f^\top * P_{\lambda}(f) * f 
             k_++; J_old = J_new;
 	    J_new = m_->data_loss() + m_->ftPf(m_->lambda(), solver_.f(), solver_.g());
         }
 
-        // std::cout << "fpirl niter = " << k_ << std::endl ; 
+        std::cout << "fpirl niter = " << k_ << std::endl; 
         return;
     }
     // sets an externally defined solver
     template <typename T> void set_solver(T&& solver) { solver_ = solver; }
+    void set_max_iter(const unsigned int iter) { max_iter_ = iter; }  // M 
     // getters
     std::size_t n_iter() const { return k_; }
     const SolverWrapper& solver() const { return solver_; }

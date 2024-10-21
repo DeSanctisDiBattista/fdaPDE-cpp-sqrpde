@@ -53,6 +53,7 @@ class StochasticEDF {
             std::mt19937 rng(seed_);
             std::bernoulli_distribution Be(0.5);   // bernulli distribution with parameter p = 0.5
 
+            //std::cout << "in stochastic_edf: gcv_approach_=" << gcv_approach_ << std::endl; 
             if(gcv_approach_ == "first"){
                 Us_.resize(model_.n_locs(), r_);       // preallocate memory for matrix Us
                 // fill matrix
@@ -96,6 +97,7 @@ class StochasticEDF {
         Bs_ = DMatrix<double>::Zero(2 * n, r_);
 
         if(gcv_approach_ == "first"){
+            //std::cout << "in stochastic_edf.h first approach" << std::endl; 
             if (!model_.has_covariates())   // non-parametric model
                 Bs_.topRows(n) = -model_.PsiTD() * model_.W() * Us_;
             else   // semi-parametric model
@@ -156,8 +158,8 @@ class StochasticEDF {
 
     // M 
     void gcv_approach_set_trace(const std::string& gcv_approach) { 
-        std::cout << "Setting strategy GCV in exact_edf.h" << std::endl; 
-        std::cout << "string value = " << gcv_approach << std::endl; 
+        //std::cout << "Setting strategy GCV in stochastic_edf.h" << std::endl; 
+        //std::cout << "string value = " << gcv_approach << std::endl; 
         gcv_approach_ = gcv_approach; 
     }; 
 };

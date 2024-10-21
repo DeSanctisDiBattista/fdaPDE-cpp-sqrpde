@@ -62,7 +62,9 @@ template <typename RegularizationType_>
         double tolerance_ = 1e-5;              // convergence tolerance 
         double tol_weights_ = 1e-6;            // weights tolerance
         std::size_t max_iter_ = 200;           // max number of inner iterations 
-        std::size_t max_iter_global_ = 100;    // max number of outer iterations 
+        std::size_t max_iter_global_ = 10;     // max number of outer iterations 
+
+        unsigned int fpirls_iter_ = 200;       // number of max fpirls iterations for the single estimates
 
         std::size_t k_ = 0;                    // inner iteration index
         std::size_t iter_ = 0;                 // outer iteration index
@@ -206,8 +208,12 @@ template <typename RegularizationType_>
 
             // parametric case 
             if(has_covariates()){ 
+                //std::cout << "dim X() in MQSRPDE = " << X().rows() << ";" << X().cols() << std::endl; 
                 X_multiple_ = Kronecker(DMatrix<double>(Ih_), X()); 
+                //std::cout << "dim X_multiple_ in MQSRPDE = " << X_multiple_.rows() << ";" << X_multiple_.cols() << std::endl;
                 XtWX_multiple_.resize(h_*q(), h_*q()); 
+                H_multiple_.resize(n_obs()*h_, n_obs()*h_); 
+                //std::cout << "dim H_multiple_ in MQSRPDE = " << H_multiple_.rows() << ";" << H_multiple_.cols() << std::endl;
                 U_multiple_.resize(2*h_*n_basis(), h_*q());
                 V_multiple_.resize(h_*q(), 2*h_*n_basis());
             }
@@ -254,7 +260,8 @@ template <typename RegularizationType_>
         void set_preprocess_option(bool preprocess){ do_process = preprocess;}; 
         void set_forcing_option(bool force){ force_entrance = force;}; 
         void set_max_iter(unsigned int max_it) {max_iter_ = max_it; };
-        void set_gamma_init(unsigned int gamma) {gamma0_ = gamma; };
+        void set_gamma_init(unsigned int gamma) { gamma0_ = gamma;}; 
+        void set_maxiter_fpirls_single(const unsigned int it){ fpirls_iter_ = it;}; 
 
         virtual ~MQSRPDE() = default;
     };
@@ -292,8 +299,10 @@ template <typename RegularizationType_>
 
             // solver initialization
             model_j.data() = data();
-            model_j.set_lambda_D(lambdas_D[j]);     
+            model_j.set_lambda_D(lambdas_D[j]); 
+            //std::cout << "dim this->locs() in init_model = " << this->locs().rows() << std::endl; 
             model_j.set_spatial_locations(this->locs());
+            model_j.set_fpirls_max_iter(fpirls_iter_); 
             // model_j.init_pde();
             // model_j.init_regularization();
             // model_j.init_sampling();    
@@ -311,7 +320,7 @@ template <typename RegularizationType_>
 
             J_init += model_j.data_loss();   // degub 
 
-        }
+        } 
 
         // init = curr 
         f_init_ = f_curr_; 
@@ -325,7 +334,9 @@ template <typename RegularizationType_>
         // rmk: media posta a distanza 2*eps e non eps per evitare instabilità numeriche nel caso in cui 
         // la soluzione postprocessata venga data in input all'algoritmo di MQSRPDE
 
-        std::size_t ind_median = (find(alphas_.begin(), alphas_.end(), 0.5)) - alphas_.begin();
+        std::size_t ind_median; 
+        if(do_process)
+            ind_median = (find(alphas_.begin(), alphas_.end(), 0.5)) - alphas_.begin();
         //std::cout << "idx median : " << ind_median << std::endl;
         // DVector<double> fn_new = fn_curr_; // debug
         // DVector<double> fn_old = fn_curr_;  // debug 
@@ -480,7 +491,6 @@ template <typename RegularizationType_>
         if(crossing_constraints() && do_process)
             std::cout << "---ATT: CROSSING at the end of the processing" << std::endl ; 
 
-
         // std::cout << "Range f_init_ : " << f_init_.minCoeff() << " , " << f_init_.maxCoeff() << std::endl ; 
         // std::cout << "Range g_init_ : " << g_init_.minCoeff() << " , " << g_init_.maxCoeff() << std::endl ; 
         // std::cout << "Model loss of the initializazion: " << data_loss() << " + penalty = " << g_curr_.dot(R0_multiple_*g_curr_) << std::endl;  
@@ -492,6 +502,9 @@ template <typename RegularizationType_>
     template <typename RegularizationType>
         void MQSRPDE<RegularizationType>::solve() {
 
+        // std::cout << "n_obs() in solve =" << n_obs() << std::endl; 
+        // std::cout << "n_locs() in solve =" << n_locs() << std::endl; 
+ 
         // store room for W, Delta, z, t
         w_.resize(h_*n_obs()); 
         W_bar_.resize(h_*n_obs());    
@@ -525,19 +538,21 @@ template <typename RegularizationType_>
             // inner loop for the convergence of J 
             while(k_ < max_iter_ && std::abs(J_new - J_old) > tolerance_){    
 
-                //std::cout << "--------------------------  k_ = " << k_ << std::endl; 
+                // std::cout << "--------------------------  k_ = " << k_ << std::endl; 
 
                 // assemble W, Delta, z 
                 DVector<double> delta_((h_-1)*n_obs()); 
 
                 for(int j = 0; j < h_; ++j){
 
+                    // std::cout << "--------------------------  j = " << j << std::endl; 
+
                     DVector<double> abs_res_j;
                     DVector<double> delta_j; 
                     DVector<double> z_j;
                     
                     // compute absolute residuals (without tolerance correction)
-                    abs_res_j = (y() - fitted(j)).cwiseAbs(); 
+                    abs_res_j = (y() - fitted(j)).cwiseAbs();
 
                     if(j < h_-1) {
                         delta_j = (2*(eps_*DVector<double>::Ones(n_obs()) - D_script_.block(j*n_obs(), 0, n_obs(), h_*n_obs())*fitted())).cwiseAbs().cwiseInverse(); 
@@ -552,35 +567,46 @@ template <typename RegularizationType_>
 
                     // compute weights 
                     w_.block(j*n_obs(), 0, n_obs(), 1) = 2*n_obs()*abs_res_j;
-
+  
                     // store the results in the global matrices 
                     if(j < h_-1) 
                         delta_.block(j*n_obs(), 0, n_obs(), 1) = delta_j; 
 
-                    z_.block(j*n_obs(), 0, n_obs(), 1) = z_j;         
+
+                    z_.block(j*n_obs(), 0, n_obs(), 1) = z_j;  
+ 
                 }
 
                 Delta_.diagonal() = delta_;
+ 
                 W_bar_.diagonal() = w_.cwiseInverse(); 
+
                 W_multiple_ = SpMatrix<double>(W_bar_) + gamma0_*D_script_.transpose()*Delta_*D_script_; 
+
 
                 // assemble t 
                 t = D_script_.transpose()*Delta_*eps_*DVector<double>::Ones((h_-1)*n_obs()) + 0.5*l_hn_; 
+
 
                 // assemble nonparameteric system matrix (RMK: mass and stiffness matrices already contain lambda)
                 A_ = SparseBlockMatrix<double,2,2>
                 (-Psi_multiple_.transpose()*W_multiple_*Psi_multiple_,    R1_multiple_.transpose(),
                 R1_multiple_,                                             R0_multiple_            );
+ 
                 
                 // cache non-parametric matrix factorization for reuse
                 invA_.compute(A_);
 
+
                 // prepare rhs of linear system (TODO: generalize to non zero rhs)
                 b_.resize(A_.rows());
+    
                 // assemble b_g = (lambda_1*u, ..., lambda_h*u)' 
                 DVector<double> b_g = u().replicate(h_, 1);   // u_1 = ... = u_h
-                // std::cout << "u norm inf: " << b_g.cwiseAbs().maxCoeff() << std::endl; 
+  
+                std::cout << "u norm inf: " << b_g.cwiseAbs().maxCoeff() << std::endl; 
                 std::size_t count_lambda = 0; 
+
                 for(std::size_t ind = 0; ind < h_*n_basis(); ind+=n_basis()){
                     // std::cout << "------------ ind = " << ind << std::endl ; 
                     // std::cout << "---- lambdas_D( " << count_lambda << " ) = " << lambdas_D(count_lambda) << std::endl ; 
@@ -591,8 +617,10 @@ template <typename RegularizationType_>
                     // std::cout << "----- POST b_g(ind) norm inf: " << b_g.block(ind,0, n_basis(),1).cwiseAbs().maxCoeff() << std::endl;  
                     count_lambda++; 
                 }
+
                 // b_.block(h_*n_basis(),0, h_*n_basis(),1) = DVector<double>::Zero(h_*n_basis());  // b_g = 0 
                 b_.block(h_*n_basis(),0, h_*n_basis(),1) = b_g; 
+
                 // // check b_g
                 // std::cout << "b_g size: " << b_g.size() << "=" << h_*n_basis() << std::endl; 
                 // std::cout << "b_g norm inf: " << b_g.cwiseAbs().maxCoeff() << std::endl; 
@@ -612,29 +640,45 @@ template <typename RegularizationType_>
 
                 } else{ // parametric case
     
+ 
                         XtWX_multiple_ = X_multiple_.transpose()*W_multiple_*X_multiple_;
+  
                         invXtWX_multiple_ = XtWX_multiple_.partialPivLu(); 
 
+
                         // update rhs of SR-PDE linear system
+                        // std::cout << "dim Psi_multiple_.transpose() = " << (Psi_multiple_.transpose()).rows() << ";" << (Psi_multiple_.transpose()).cols() << std::endl; 
+                        // std::cout << "dim Ihn_ = " << Ihn_.rows() << ";" << Ihn_.cols() << std::endl;
+                        // std::cout << "dim H_multiple().transpose() = " << (H_multiple().transpose()).rows() << ";" << (H_multiple().transpose()).cols() << std::endl;
+                        // std::cout << "dim W_bar_ = " << W_bar_.rows() << ";" << W_bar_.cols() << std::endl;
+                        // std::cout << "dim z_ = " << z_.rows() << ";" << z_.cols() << std::endl;
+                        // std::cout << "dim t = " << t.rows() << ";" << t.cols() << std::endl;
+
                         b_.block(0,0, h_*n_basis(),1) = -Psi_multiple_.transpose()*(Ihn_ - H_multiple().transpose())*(W_bar_*z_ + gamma0_*t);  
+
 
                         // definition of matrices U and V  for application of woodbury formula
                         U_multiple_ = DMatrix<double>::Zero(2*h_*n_basis(), h_*q());
                         U_multiple_.block(0,0, h_*n_basis(), h_*q()) = Psi_multiple_.transpose()*W_multiple_*X_multiple_;
                         V_multiple_ = DMatrix<double>::Zero(h_*q(), 2*h_*n_basis());
                         V_multiple_.block(0,0, h_*q(), h_*n_basis()) = X_multiple_.transpose()*W_multiple_*Psi_multiple_;
+
                         // solve system (A_ + U_*(X^T*W_*X)*V_)x = b using woodbury formula from NLA module
                         sol = SMW<>().solve(invA_, U_multiple_, XtWX_multiple_, V_multiple_, b_); 
+     
                         // store result of smoothing 
                         f_curr_    = sol.head(h_*n_basis());
                         fn_curr_ = Psi_multiple_*f_curr_; 
                         beta_curr_ = invXtWX_multiple_.solve(X_multiple_.transpose()*(W_bar_*z_ - W_multiple_*fn_curr_ + gamma0_*t));
+
+ 
                         
                         //std::cout << "Beta_curr: " << beta_curr_ << std::endl; 
 
                     }
                     // store PDE misfit
                     g_curr_ = sol.tail(h_*n_basis());
+
                     
                     //std::cout << "Range g_curr: " << g_curr_.minCoeff() << " , " << g_curr_.maxCoeff() << std::endl;
                     //std::cout << "Range f_curr: " << f_curr_.minCoeff() << " , " << f_curr_.maxCoeff() << std::endl; 
@@ -741,8 +785,10 @@ template <typename RegularizationType_>
 
     template <typename RegularizationType>
         const DMatrix<double>& MQSRPDE<RegularizationType>::H_multiple() {
+
+        
         // compute H = X*(X^T*W*X)^{-1}*X^T*W
-        H_multiple_ = X_multiple_*(invXtWX_multiple_.solve(X_multiple_.transpose()*W_multiple_));
+        H_multiple_ = X_multiple_*(invXtWX_multiple_.solve(X_multiple_.transpose())*W_multiple_);  
 
         return H_multiple_;
     }

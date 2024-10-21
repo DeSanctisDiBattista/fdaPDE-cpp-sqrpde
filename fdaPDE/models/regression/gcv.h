@@ -81,12 +81,12 @@ class GCV {
         double dor;                       // residual degrees of freedom
 
         //std::cout << "in gcv.h model_.gcv_approach()=" << model_.gcv_approach() << std::endl; 
-        std::cout << "in gcv.h gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
+        //std::cout << "in gcv.h gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
         if(gcv_oss_rip_strategy_ == "first"){               // M gcv for repeated observations
-            std::cout << "compute dor with all locs..." << std::endl; 
+            //std::cout << "compute dor with all locs..." << std::endl; 
             dor = n - (q + trS);       // residual degrees of freedom
         } else{
-            std::cout << "compute dor with unique locs..." << std::endl; 
+            //std::cout << "compute dor with unique locs..." << std::endl; 
             dor = model_.num_unique_locs() - (model_.q() + trS);   // (n - (q + Tr[S])
         }
 
@@ -104,15 +104,14 @@ class GCV {
     template <typename ModelType_, typename EDFStrategy_>
     GCV(const ModelType_& model, EDFStrategy_&& trS) : model_(model), trS_(trS), gcv_(this, &This::gcv_impl) {
         // set model pointer in edf computation strategy
-        std::cout << "calling normal constructor " << std::endl; 
-        std::cout << "in gcv constructor model.gcv_approach()=" << model.gcv_approach() << std::endl; 
+        //std::cout << "in gcv constructor model.gcv_approach()=" << model.gcv_approach() << std::endl; 
         //std::cout << "in gcv constructor model_.gcv_approach()=" << model_.gcv_approach() << std::endl; -> segmentation fault
         gcv_oss_rip_strategy_ = model.gcv_approach(); 
-        std::cout << "in gcv constructor gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
+        //std::cout << "in gcv constructor gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
         trS_.set_model(model_);
-        std::cout << "in gcv constructor gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
+        //std::cout << "in gcv constructor gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
         trS_.gcv_approach_set_trace(gcv_oss_rip_strategy_);
-        std::cout << "at the end of constructor gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
+        //std::cout << "at the end of constructor gcv_oss_rip_strategy_=" << gcv_oss_rip_strategy_ << std::endl; 
     }
     template <typename ModelType_> GCV(const ModelType_& model) : GCV(model, StochasticEDF()) { }
     GCV(const GCV& other) : model_(other.model_), trS_(other.trS_), gcv_(this, &This::gcv_impl) {
@@ -135,7 +134,7 @@ class GCV {
 
     // returns GCV index of Model in its current state
     double eval() {
-        std::cout << "in GCV eval()" << std::endl; 
+        //std::cout << "in GCV eval()" << std::endl; 
         if (cache_.find(model_.lambda()) == cache_.end()) { cache_[model_.lambda()] = trS_.compute(); }
         double trS = cache_[model_.lambda()];
 
@@ -145,7 +144,7 @@ class GCV {
 
         // M gcv for repeated observations
         if(gcv_oss_rip_strategy_ == "first"){               
-            std::cout << "GCV denominator computation with all locs..." << std::endl; 
+            //std::cout << "GCV denominator computation with all locs..." << std::endl; 
             dor = model_.n_obs() - (model_.q() + trS);   // (n - (q + Tr[S])
         } else{
             std::cout << "GCV denominator computation with unique locs..." << std::endl; 

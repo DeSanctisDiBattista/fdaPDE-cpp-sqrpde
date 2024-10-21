@@ -64,7 +64,11 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     }
     // setter
     void set_fpirls_tolerance(double tol) { tol_ = tol; }
-    void set_fpirls_max_iter(int max_iter) { max_iter_ = max_iter; }
+    void set_fpirls_max_iter(int max_iter) { 
+        std::cout << "setting max_iter fpirls to " << max_iter << std::endl; 
+        max_iter_ = max_iter; 
+        fpirls_.set_max_iter(max_iter);   // M: update variable in fpirls object
+    }
     void set_alpha(double alpha) { alpha_ = alpha; }
     void set_eps_power(double eps) { eps_ = eps; }
     void set_weights_tolerance(double tol_weights) { tol_weights_ = tol_weights; }
@@ -151,16 +155,21 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
         SparseBlockMatrix<double, 2, 2> A(
           -PsiTD() * Psi() / n_obs(), 2 * lambda_D() * R1().transpose(),   // NB: note the 2 * here
           lambda_D() * R1(),          lambda_D() * R0()                );
+
+
         if constexpr (is_space_time_separable<This>::value) {
             A.block(0, 0) -= 2*Base::lambda_T() * Kronecker(Base::P1(), Base::pde().mass());
         }
         fdapde::SparseLU<SpMatrix<double>> invA;
         invA.compute(A);
+
         // assemble rhs of srpde problem
         DVector<double> b(A.rows());
         b.block(n_basis(), 0, n_basis(), 1) = lambda_D() * u();
         b.block(0, 0, n_basis(), 1) = -PsiTD() * y() / n_obs();
+
         mu_ = Psi(not_nan()) * (invA.solve(b)).head(n_basis());
+
     }
     // computes W^k = diag(1/(2*n*|y - X*beta - f|)) and y^k = y - (1-2*alpha)|y - X*beta - f|
     void fpirls_compute_step() {
@@ -196,8 +205,13 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
     const fdapde::SparseLU<SpMatrix<double>>& invA() const { return invA_; }
     //const double& alpha() const { return alpha_; }
 
-    // Debug -> salva il numero di iterazioni (per il test obs ripetute)
+    // Debug
     const std::size_t& n_iter_qsrpde() const {return n_iter_qsrpde_; }
+    const std::vector<double> loss_each_iter() const { return loss_each_iter_; }
+    const std::vector<double> pdemisfit_each_iter() const { return pdemisfit_each_iter_; }
+
+    void set_loss_each_iter(double loss) { loss_each_iter_.push_back(loss); }
+    void set_pdemisfit_each_iter(double misfit) { pdemisfit_each_iter_.push_back(misfit); }
 
     // GCV support
     double norm(const DMatrix<double>& op1, const DMatrix<double>& op2) const {
@@ -326,6 +340,9 @@ class QSRPDE : public RegressionBase<QSRPDE<RegularizationType_>, Regularization
 
     DVector<double> pW_reduced;   // M 
     DVector<double> py_reduced;   // M 
+
+    std::vector<double> loss_each_iter_; // debug
+    std::vector<double> pdemisfit_each_iter_; // debug
 
     FPIRLS<This> fpirls_;   // fpirls algorithm
     int max_iter_ = 200;    // maximum number of iterations in fpirls before forced stop
