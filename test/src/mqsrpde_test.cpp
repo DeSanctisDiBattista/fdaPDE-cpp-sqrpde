@@ -1665,11 +1665,13 @@ using fdapde::testing::read_csv;
 //    BC:           no
 //    order FE:     1
 TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
+    
+    // path test  
+    const std::string trial_number = "4"; 
+    std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MQSRPDE/Tests/Test_2/trial_" + trial_number;
 
-    // path test   
-    std::string R_path = "/mnt/c/Users/marco/OneDrive - Politecnico di Milano/Corsi/PhD/Codice/models/MQSRPDE/Tests/Test_2"; 
-
-    const unsigned int n_sim = 5; 
+    const unsigned int n_sim = 20; 
+    const unsigned int sim_start = 1; 
     const std::string gcv_refinement = "fine"; 
 
     const std::string gamma_str = "1";
@@ -1677,8 +1679,8 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
     const unsigned int max_it_convergence_loop = 50; 
 
     // define domain
-    MeshLoader<Triangulation<2, 2>> domain("unit_square_25");  //  mesh coarse: "unit_square_test7"      
-    const std::string lambda_selection = "eps1e-1.5";  
+    MeshLoader<Triangulation<2, 2>> domain("unit_square_25");  
+    const std::string lambda_selection = "eps1e-1.5"; 
     //const std::string pde_type = "_lap";    // "_Ktrue" "_lap" "_casc"
     const bool single_est = true;
     const bool mult_est = true; 
@@ -1686,11 +1688,18 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
     // rhs 
     DMatrix<double> u = DMatrix<double>::Zero(domain.mesh.n_cells() * 3, 1);
 
-    // // lap 
-    // if(pde_type != "_lap")
-    //     std::cout << "ERROR: YOU WANT TO USE K = I BUT YOU ARE USING SOMETHING ELSE" << std::endl; 
-    // auto L = -laplacian<FEM>(); 
-    // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);  
+
+    // anisotrpy type 
+    const std::string pde_type = "_lap";  // "": anisotropo  "_lap": isotropo
+
+
+    // define regularizing PDE  (ATT: controlla anche sotto)
+
+    // lap 
+    if(pde_type != "_lap")
+        std::cout << "ERROR: YOU WANT TO USE K = I BUT YOU ARE USING SOMETHING ELSE" << std::endl; 
+    auto L = -laplacian<FEM>();   
+    PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
     // // K = K_true
     // if(pde_type != "_Ktrue")
@@ -1700,28 +1709,33 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
     // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
     // define statistical model
-    std::vector<double> alphas = {0.01, 0.02, 0.03, 0.05, 
-                                  0.10, 0.25, 
+    std::vector<double> alphas = {0.01, 0.02, 0.03,
+                                  0.05, 
+                                  0.10, 
+                                  0.25, 
                                   0.50, 
-                                  0.75, 0.90, 
-                                  0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99};  
+                                  0.75,
+                                  0.90, 
+                                  0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99
+                                  };  
 
     // Read locs
     DMatrix<double> loc = read_csv<double>(R_path + "/locs.csv"); 
+    DMatrix<double> X = read_csv<double>(R_path + "/X.csv");  
 
     // Single estimations
     if(single_est){
         std::cout << "-----------------------SINGLE running---------------" << std::endl;
-        for(auto sim = 1; sim <= n_sim; ++sim){
+        for(auto sim = sim_start; sim <= n_sim; ++sim){
 
                 std::cout << "--------------------Simulation #" << std::to_string(sim) << "-------------" << std::endl; 
 
-                // K = K_est
-                // if(pde_type != "_casc")
+                // // K = K_est
+                // if(pde_type != "") // "" stands for anisotropic case 
                 //     std::cout << "ERROR: YOU WANT TO USE K = K_est BUT YOU ARE USING SOMETHING ELSE" << std::endl; 
-                SMatrix<2> K = read_csv<double>(R_path + "/simulations/sim_" + std::to_string(sim) + "/K.csv"); 
-                auto L = -diffusion<FEM>(K);   // anisotropic diffusion  
-                PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
+                // SMatrix<2> K = read_csv<double>(R_path + "/simulations/sim_" + std::to_string(sim) + "/K.csv"); 
+                // auto L = -diffusion<FEM>(K);   // anisotropic diffusion  
+                // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
                 // load data from .csv files
                 DMatrix<double> y = read_csv<double>(R_path + "/simulations/sim_" + std::to_string(sim) + "/y.csv");
@@ -1733,9 +1747,10 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
                     model.set_spatial_locations(loc);
                     unsigned int alpha_int = alphas[idx]*100;  
                     double lambda; 
-                    std::ifstream fileLambda(solution_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + ".csv");
+                    std::ifstream fileLambda(solution_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + pde_type + ".csv");
                     if(fileLambda.is_open()){
                         fileLambda >> lambda; 
+                        std::cout << "lambda=" << lambda << std::endl; 
                         fileLambda.close();
                     }
                     model.set_lambda_D(lambda);
@@ -1743,6 +1758,7 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
                     // set model data
                     BlockFrame<double, int> df;
                     df.insert(OBSERVATIONS_BLK, y);
+                    df.insert(DESIGN_MATRIX_BLK, X);
                     model.set_data(df);
 
                     // solve smoothing problem
@@ -1752,7 +1768,7 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
                     // Save solution
                     DMatrix<double> computedF = model.f();
                     const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filef(solution_path + "/f_" + std::to_string(alpha_int) + ".csv");
+                    std::ofstream filef(solution_path + "/f_" + std::to_string(alpha_int) + pde_type + ".csv");
                     if(filef.is_open()){
                         filef << computedF.format(CSVFormatf);
                         filef.close();
@@ -1760,10 +1776,19 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
 
                     DMatrix<double> computedFn = model.Psi()*model.f();
                     const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                    std::ofstream filefn(solution_path + "/fn_" + std::to_string(alpha_int) + ".csv");
+                    std::ofstream filefn(solution_path + "/fn_" + std::to_string(alpha_int) + pde_type + ".csv");
                     if(filefn.is_open()){
                         filefn << computedFn.format(CSVFormatfn);
                         filefn.close();
+                    }
+
+
+                    DMatrix<double> computedBeta = model.beta();
+                    const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                    std::ofstream filebeta(solution_path + "/beta_" + std::to_string(alpha_int) + pde_type + ".csv");
+                    if(filebeta.is_open()){
+                        filebeta << computedBeta.format(CSVFormatbeta);
+                        filebeta.close();
                     }
 
                     idx++;
@@ -1777,29 +1802,23 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
 
     // Simultaneous estimations
     if(mult_est){
-        for(auto sim = 1; sim <= n_sim; ++sim){
+        for(auto sim = sim_start; sim <= n_sim; ++sim){
 
                 std::cout << "--------------------Simulation #" << std::to_string(sim) << "-------------" << std::endl; 
 
-                // K = K_est
+                // // K = K_est
                 // if(pde_type != "_casc")
                 //     std::cout << "ERROR: YOU WANT TO USE K = K_est BUT YOU ARE USING SOMETHING ELSE" << std::endl; 
-                SMatrix<2> K = read_csv<double>(R_path + "/simulations/sim_" + std::to_string(sim) + "/K.csv"); 
-                auto L = -diffusion<FEM>(K);   // anisotropic diffusion  
-                PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
+                // SMatrix<2> K = read_csv<double>(R_path + "/simulations/sim_" + std::to_string(sim) + "/K.csv"); 
+                // auto L = -diffusion<FEM>(K);   // anisotropic diffusion  
+                // PDE<decltype(domain.mesh), decltype(L), DMatrix<double>, FEM, fem_order<1>> problem(domain.mesh, L, u);
 
                 MQSRPDE<SpaceOnly> model(problem, Sampling::pointwise, alphas);
-                std::cout << "here 1" << std::endl; 
                 model.set_spatial_locations(loc);
-                std::cout << "here 2" << std::endl; 
                 model.set_preprocess_option(false); 
-                std::cout << "here 3" << std::endl; 
                 model.set_forcing_option(false);
-                std::cout << "here 4" << std::endl; 
                 model.set_max_iter(max_it_convergence_loop); 
-                std::cout << "here 5" << std::endl; 
                 model.set_gamma_init(gamma_value); 
-                std::cout << "here 6" << std::endl; 
 
                 std::string solution_path = R_path + "/simulations/sim_" + std::to_string(sim) + "/multiple_" + gamma_str + "/" + lambda_selection + "/" + gcv_refinement;
                 std::string lambda_path = R_path + "/simulations/sim_" + std::to_string(sim) + "/single" + "/" + lambda_selection + "/" + gcv_refinement; 
@@ -1810,17 +1829,15 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
                 lambdas_temp.resize(alphas.size());
                 for(std::size_t idx = 0; idx < alphas.size(); ++idx){
                     unsigned int alpha_int = alphas[idx]*100;  
-                    std::ifstream fileLambdas(lambda_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + ".csv");
+                    std::ifstream fileLambdas(lambda_path + "/lambdas_opt_alpha_" + std::to_string(alpha_int) + pde_type + ".csv");
                     if(fileLambdas.is_open()){
-                        std::cout << "lambdas_temp(idx)=" << lambdas_temp(idx) << std::endl; 
                         fileLambdas >> lambdas_temp(idx); 
+                        std::cout << "lambdas_temp(idx)=" << lambdas_temp(idx) << std::endl; 
                         fileLambdas.close();
                     }
                 }
                 lambdas = lambdas_temp;                
                 model.setLambdas_D(lambdas);
-
-                std::cout << "here 7" << std::endl; 
 
                 // load data from .csv files
                 DMatrix<double> y = read_csv<double>(R_path + "/simulations/sim_" + std::to_string(sim) + "/y.csv");
@@ -1828,20 +1845,17 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
                 // set model data
                 BlockFrame<double, int> df;
                 df.insert(OBSERVATIONS_BLK, y);
+                df.insert(DESIGN_MATRIX_BLK, X);
                 model.set_data(df);
-
-                std::cout << "here 8" << std::endl; 
 
                 // solve smoothing problem
                 model.init();
-                std::cout << "here 9" << std::endl; 
                 model.solve();
-                std::cout << "here 10" << std::endl; 
 
                 // Save solution
                 DMatrix<double> computedF = model.f();
                 const static Eigen::IOFormat CSVFormatf(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream filef(solution_path + "/f_all.csv");
+                std::ofstream filef(solution_path + "/f_all" + pde_type + ".csv");
                 if(filef.is_open()){
                     filef << computedF.format(CSVFormatf);
                     filef.close();
@@ -1849,10 +1863,19 @@ TEST(mqsrpde_test2, laplacian_semiparametric_samplingatlocations) {
 
                 DMatrix<double> computedFn = model.Psi_mult()*model.f();
                 const static Eigen::IOFormat CSVFormatfn(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-                std::ofstream filefn(solution_path + "/fn_all.csv");
+                std::ofstream filefn(solution_path + "/fn_all" + pde_type + ".csv");
                 if(filefn.is_open()){
                     filefn << computedFn.format(CSVFormatfn);
                     filefn.close();
+                }
+
+
+                DMatrix<double> computedBeta = model.beta();
+                const static Eigen::IOFormat CSVFormatbeta(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
+                std::ofstream filebeta(solution_path + "/beta_all" + pde_type + ".csv");
+                if(filebeta.is_open()){
+                    filebeta << computedBeta.format(CSVFormatbeta);
+                    filebeta.close();
                 }
           
  
